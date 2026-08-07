@@ -1,0 +1,20 @@
+{
+  "name": "jih-sewing-system",
+  "version": "1.0.0",
+  "description": "Jamaat-e-Islami Hind - Sewing Classes Management System",
+  "scripts": {
+    "dev:backend": "npm --prefix backend start",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "start": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "test": "cd backend && npx jest --runInBand",
+    "test:e2e": "npx playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "concurrently": "^10.0.4",
+    "dotenv": "^17.4.2",
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
+  }
+}

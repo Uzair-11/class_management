@@ -1,0 +1,424 @@
+/* Jamaat-e-Islami Hind Official Design System */
+:root {
+  /* Brand Palette (Official JIH Green & Accents) */
+  --color-primary: #0B6E4F;        /* Official JIH Deep Islamic Green */
+  --color-primary-dark: #074733;   /* Deep Forest Ink Green */
+  --color-primary-light: #E7F3EF;  /* Soft Green Background Tint */
+  --color-accent: #D4A373;         /* Institutional Sand/Gold Accent */
+  
+  /* Status Colors (Muted & Accessible) */
+  --color-success: #2A7B4C;        /* Moss Green - Present, Paid, Working, Active */
+  --color-warning: #D98E2C;        /* Amber - Needs maintenance, Partial, Pending */
+  --color-danger: #C63D2F;         /* Deep Terracotta - Absent, Overdue, Out of Service */
+  
+  /* Surface & Backgrounds */
+  --color-background: #FAFAFA;     /* Clean Off-White Background */
+  --color-surface: #FFFFFF;        /* White Card Surface */
+  --color-surface-hover: #F4F7F5;  /* Subtle Card Hover */
+  --color-border: #E0E0E0;         /* Soft Gray Divider */
+  
+  /* Typography Colors */
+  --color-text: #1A1A1A;           /* Dark Charcoal (Not Pure Black) */
+  --color-text-secondary: #666666; /* Warm Gray Labels */
+
+  /* Typography Fonts */
+  --font-heading: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-background);
+  color: var(--color-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.5;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--color-text);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Header & Top Navigation Bar (Single Line Non-wrapping Layout) */
+.navbar {
+  background-color: #ffffff;
+  border-bottom: 3px solid var(--color-primary);
+  padding: 0.65rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.navbar-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.navbar-logo {
+  height: 38px;
+  width: auto;
+}
+
+.navbar-brand {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--color-primary-dark);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.navbar-link {
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 3px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.navbar-link:hover {
+  color: var(--color-primary);
+}
+
+.navbar-link.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 700;
+  background-color: var(--color-primary-light);
+  border-radius: 4px 4px 0 0;
+}
+
+/* Navigation Dropdown Container */
+.nav-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: #ffffff;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.4rem 0;
+  z-index: 100;
+}
+
+.nav-dropdown-item {
+  display: block;
+  padding: 0.5rem 1rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+
+.nav-dropdown-item:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Page Layout */
+.page-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  flex: 1;
+  width: 100%;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.header-row h2 {
+  font-size: 1.7rem;
+  color: var(--color-primary-dark);
+}
+
+/* Cards (JIH Clean Style with Accent Borders) */
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.auth-container {
+  display: flex;
+  min-height: 75vh;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 5px solid var(--color-primary);
+  border-radius: 8px;
+  padding: 2.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Tables */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+}
+
+.plain-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.plain-table th, .plain-table td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.plain-table th {
+  background-color: var(--color-primary-light);
+  font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.plain-table tr:hover td {
+  background-color: var(--color-surface-hover);
+}
+
+.plain-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 1.1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 0.4rem;
+}
+
+.form-input, .form-select {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-family: var(--font-body);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(11, 110, 79, 0.15);
+}
+
+/* Buttons (JIH Primary Green Style) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.15rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px; /* Accessible Touch Target */
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btn:hover {
+  background-color: var(--color-primary-light);
+}
+
+.btn-black {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border: 1px solid var(--color-primary);
+}
+
+.btn-black:hover {
+  background-color: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  color: #ffffff;
+  border: 1px solid var(--color-danger);
+}
+
+.btn-danger:hover {
+  background-color: #A32D21;
+}
+
+.btn-sm {
+  min-height: 34px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* Three Site-Wide Status Color Tiers (.status-good, .status-warning, .status-critical) */
+.status-good {
+  background-color: rgba(42, 123, 76, 0.12) !important;
+  color: var(--color-success) !important;
+  border: 1px solid rgba(42, 123, 76, 0.3) !important;
+}
+
+.status-warning {
+  background-color: rgba(217, 142, 44, 0.12) !important;
+  color: var(--color-warning) !important;
+  border: 1px solid rgba(217, 142, 44, 0.3) !important;
+}
+
+.status-critical {
+  background-color: rgba(198, 61, 47, 0.12) !important;
+  color: var(--color-danger) !important;
+  border: 1px solid rgba(198, 61, 47, 0.3) !important;
+}
+
+/* Status Badges (Pill Shaped, Muted Background Tints) */
+.badge-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.badge-success {
+  background-color: rgba(42, 123, 76, 0.12);
+  color: var(--color-success);
+  border: 1px solid rgba(42, 123, 76, 0.3);
+}
+
+.badge-warning {
+  background-color: rgba(217, 142, 44, 0.12);
+  color: var(--color-warning);
+  border: 1px solid rgba(217, 142, 44, 0.3);
+}
+
+.badge-danger {
+  background-color: rgba(198, 61, 47, 0.12);
+  color: var(--color-danger);
+  border: 1px solid rgba(198, 61, 47, 0.3);
+}
+
+.error-box {
+  background-color: rgba(198, 61, 47, 0.08);
+  border: 1px solid rgba(198, 61, 47, 0.25);
+  color: var(--color-danger);
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Footer (JIH Institutional Dark Style) */
+.footer {
+  background-color: var(--color-primary-dark);
+  color: #ffffff;
+  padding: 2rem 1.5rem;
+  margin-top: 3rem;
+  font-size: 0.85rem;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.footer-brand {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+  color: rgba(255, 255, 255, 0.8);
+}
