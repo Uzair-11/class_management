@@ -47,12 +47,14 @@ const getStudents = async (req, res) => {
         s.id, s.name, s.phone, s.address, s.admission_date, s.status,
         s.branch_id, b.name AS branch_name,
         s.course_id, c.name AS course_name, c.fee AS course_fee,
-        sf.original_fee, sf.relief_type, sf.relief_amount, sf.final_fee, sf.amount_paid,
-        (sf.final_fee - sf.amount_paid) AS balance
+        s.relief_type, s.relief_amount,
+        COALESCE(SUM(fc.final_amount), 0) AS total_final_fee,
+        COALESCE(SUM(fc.amount_paid), 0) AS amount_paid,
+        COALESCE(SUM(fc.final_amount) - SUM(fc.amount_paid), 0) AS balance
       FROM students s
       JOIN branches b ON s.branch_id = b.id
       JOIN courses c ON s.course_id = c.id
-      LEFT JOIN student_fees sf ON s.id = sf.student_id
+      LEFT JOIN fee_cycles fc ON s.id = fc.student_id
       WHERE 1=1
     `;
 
@@ -73,6 +75,7 @@ const getStudents = async (req, res) => {
       query += ` AND s.branch_id = $${params.length}`;
     }
 
+    query += ` GROUP BY s.id, b.name, c.name, c.fee, s.relief_type, s.relief_amount`;
     query += ` ORDER BY s.id DESC`;
 
     const result = await pool.query(query, params);
@@ -96,12 +99,14 @@ const getStudentById = async (req, res) => {
         s.id, s.name, s.phone, s.address, s.admission_date, s.status,
         s.branch_id, b.name AS branch_name,
         s.course_id, c.name AS course_name, c.fee AS course_fee, c.duration_months,
-        sf.id AS fee_id, sf.original_fee, sf.relief_type, sf.relief_amount, sf.relief_percentage, sf.final_fee, sf.amount_paid,
-        (sf.final_fee - sf.amount_paid) AS balance
+        s.relief_type, s.relief_amount,
+        COALESCE(SUM(fc.final_amount), 0) AS total_final_fee,
+        COALESCE(SUM(fc.amount_paid), 0) AS amount_paid,
+        COALESCE(SUM(fc.final_amount) - SUM(fc.amount_paid), 0) AS balance
       FROM students s
       JOIN branches b ON s.branch_id = b.id
       JOIN courses c ON s.course_id = c.id
-      LEFT JOIN student_fees sf ON s.id = sf.student_id
+      LEFT JOIN fee_cycles fc ON s.id = fc.student_id
       WHERE s.id = $1
     `;
 
@@ -114,6 +119,8 @@ const getStudentById = async (req, res) => {
       params.push(accessibleBranchIds);
       query += ` AND s.branch_id = ANY($2)`;
     }
+
+    query += ` GROUP BY s.id, b.name, c.name, c.fee, c.duration_months, s.relief_type, s.relief_amount`;
 
     const result = await pool.query(query, params);
     if (result.rows.length === 0) {
@@ -173,20 +180,23 @@ const createStudent = async (req, res) => {
 
     const newStudent = studentRes.rows[0];
 
-    // Insert Student Fee
-    const feeRes = await client.query(
-      `INSERT INTO student_fees (student_id, original_fee, relief_type, relief_amount, relief_percentage)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [newStudent.id, originalFee, relief_type, finalReliefAmount, relief_percentage || null]
+    // Create first fee_cycle row for this student (cycle 1)
+    const admissionDate = newStudent.admission_date || new Date();
+    const dueDate = new Date(admissionDate);
+    dueDate.setMonth(dueDate.getMonth() + 1);
+
+    await client.query(
+      `INSERT INTO fee_cycles (student_id, branch_id, cycle_number, due_date, original_amount, relief_amount, amount_paid, status)
+       VALUES ($1, $2, 1, $3, $4, $5, 0, 'pending')
+       ON CONFLICT (student_id, cycle_number) DO NOTHING`,
+      [newStudent.id, branch_id, dueDate.toISOString().split('T')[0], originalFee, finalReliefAmount]
     );
 
     await client.query('COMMIT');
 
     res.status(201).json({
       message: 'Student registered successfully',
-      student: newStudent,
-      fee: feeRes.rows[0]
+      student: newStudent
     });
   } catch (err) {
     await client.query('ROLLBACK');

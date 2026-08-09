@@ -106,13 +106,13 @@ const getFeesReport = async (req, res) => {
       SELECT 
         c.id AS course_id,
         c.name AS course_name,
-        COUNT(s.id) AS student_count,
-        COALESCE(SUM(sf.final_fee), 0) AS total_final_fee,
-        COALESCE(SUM(sf.amount_paid), 0) AS total_amount_paid,
-        COALESCE(SUM(sf.final_fee - sf.amount_paid), 0) AS total_balance
+        COUNT(DISTINCT s.id) AS student_count,
+        COALESCE(SUM(fc.final_amount), 0) AS total_final_fee,
+        COALESCE(SUM(fc.amount_paid), 0) AS total_amount_paid,
+        COALESCE(SUM(fc.final_amount - fc.amount_paid), 0) AS total_balance
       FROM courses c
       LEFT JOIN students s ON c.id = s.course_id AND s.status = 'active' ${branchCondition}
-      LEFT JOIN student_fees sf ON s.id = sf.student_id
+      LEFT JOIN fee_cycles fc ON s.id = fc.student_id
       GROUP BY c.id, c.name
       ORDER BY c.id
     `;
