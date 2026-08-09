@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { setAuthTokenRef, setLogoutHandlerRef } from '../utils/apiClient';
 import { buildApiUrl } from '../utils/apiConfig';
+import logoImg from '../../../logo_reverse.png';
 
 const AuthContext = createContext(null);
 
@@ -94,8 +95,67 @@ export const AuthProvider = ({ children }) => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
-        <div>Authenticating system session...</div>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: 'var(--color-background, #F4F6F5)',
+        padding: '1.5rem',
+        fontFamily: 'var(--font-body, sans-serif)'
+      }}>
+        <div className="skeuocard" style={{
+          maxWidth: '480px',
+          width: '100%',
+          textAlign: 'center',
+          padding: '2.5rem 2rem',
+          borderTop: '5px solid var(--color-primary, #0B6E4F)',
+          boxShadow: 'var(--shadow-card), var(--shadow-inner)'
+        }}>
+          <img 
+            src={logoImg} 
+            alt="Jamaat-e-Islami Hind Logo" 
+            style={{ 
+              height: '72px', 
+              width: 'auto', 
+              marginBottom: '1.25rem',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.12))'
+            }} 
+          />
+          <h2 style={{ 
+            fontSize: '1.35rem', 
+            color: 'var(--color-primary-dark, #074733)', 
+            marginBottom: '0.85rem',
+            fontFamily: 'var(--font-heading, sans-serif)',
+            fontWeight: '800'
+          }}>
+            JIH Sewing Classes Management System
+          </h2>
+          <p style={{ 
+            fontSize: '0.86rem', 
+            color: 'var(--color-text-secondary, #5A6662)', 
+            lineHeight: '1.6', 
+            marginBottom: '1.75rem',
+            fontStyle: 'italic'
+          }}>
+            "Jamaat-e-Islami Hind is a socio-religious organization of India that aims to uphold a way of life that submits to the will of God."
+          </p>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            padding: '0.55rem 1.15rem',
+            borderRadius: '20px',
+            backgroundColor: 'var(--color-primary-light, #E7F3EF)',
+            border: '1px solid var(--color-primary, #0B6E4F)',
+            color: 'var(--color-primary-dark, #074733)',
+            fontSize: '0.85rem',
+            fontWeight: '600'
+          }}>
+            <span style={{ display: 'inline-block' }}>🔄</span>
+            Authenticating system session...
+          </div>
+        </div>
       </div>
     );
   }

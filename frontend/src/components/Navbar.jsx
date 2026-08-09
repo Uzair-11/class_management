@@ -69,7 +69,7 @@ const Navbar = () => {
         </button>
 
         {/* Links */}
-        <div className={`navbar-links ${menuOpen ? 'mobile-menu' : 'desktop-menu'}`}>
+        <div className={`navbar-links ${menuOpen ? 'mobile-open' : ''}`}>
           {/* Dashboard */}
           <Link 
             to="/dashboard" 
