@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logoImg from '../../../logo_reverse.png';
@@ -10,6 +10,17 @@ const Navbar = () => {
 
   const [showManageDropdown, setShowManageDropdown] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowManageDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!user) return null;
 
@@ -28,28 +39,36 @@ const Navbar = () => {
   const isManageActive = 
     location.pathname.startsWith('/branches') || 
     location.pathname.startsWith('/courses') || 
+    location.pathname.startsWith('/certificate-templates') ||
     location.pathname === '/users';
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        {/* Logo and Brand Title on single line */}
-        <div className="navbar-brand-group" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => { closeMenu(); navigate('/dashboard'); }}>
-            <img src={logoImg} alt="Jamaat-e-Islami Hind Logo" className="navbar-logo" />
+        {/* Logo and Brand Title */}
+        <div className="navbar-brand-group">
+          <div 
+            className="navbar-brand-clickable" 
+            onClick={() => { closeMenu(); navigate('/dashboard'); }}
+          >
+            <img src={logoImg} alt="JIH Logo" className="navbar-logo" />
             <div className="navbar-brand">
               JIH Sewing System
             </div>
           </div>
-          <button 
-            className="mobile-only"
-            onClick={() => setMenuOpen(!menuOpen)}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-primary-dark)' }}
-          >
-            ☰
-          </button>
         </div>
 
+        {/* Hamburger Toggle Button for Screens <= 1024px */}
+        <button 
+          className="hamburger-btn"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle navigation menu"
+          type="button"
+        >
+          {menuOpen ? '✕' : '☰'}
+        </button>
+
+        {/* Links */}
         <div className={`navbar-links ${menuOpen ? 'mobile-menu' : 'desktop-menu'}`}>
           {/* Dashboard */}
           <Link 
@@ -96,7 +115,7 @@ const Navbar = () => {
             Machines
           </Link>
 
-          {/* Holidays (Supervisor / Amir / Admin) */}
+          {/* Holidays */}
           {(role === 'supervisor' || role === 'amir' || role === 'admin') && (
             <Link 
               to="/holidays" 
@@ -116,17 +135,17 @@ const Navbar = () => {
             Reports
           </Link>
 
-          {/* Manage Dropdown (Branches, Courses, Users) */}
+          {/* Manage Dropdown (Click Triggered) */}
           {(role === 'supervisor' || role === 'amir' || role === 'admin') && (
             <div 
               className="nav-dropdown-container"
-              onMouseEnter={() => !menuOpen && setShowManageDropdown(true)}
-              onMouseLeave={() => !menuOpen && setShowManageDropdown(false)}
+              ref={dropdownRef}
             >
               <button 
                 className={`navbar-link ${isManageActive ? 'active' : ''}`}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', width: menuOpen ? '100%' : 'auto', textAlign: 'left' }}
+                style={{ cursor: 'pointer', fontFamily: 'inherit' }}
                 onClick={() => setShowManageDropdown(!showManageDropdown)}
+                type="button"
               >
                 Manage ▾
               </button>
@@ -139,13 +158,15 @@ const Navbar = () => {
                     onClick={closeMenu}
                   >
                     🏢 Branches
-                  </Link>                  <Link 
+                  </Link>
+                  <Link 
                     to="/courses" 
                     className="nav-dropdown-item"
                     onClick={closeMenu}
                   >
                     📚 Courses
-                  </Link>                  {role === 'admin' && (
+                  </Link>
+                  {role === 'admin' && (
                     <>
                       <Link 
                         to="/certificate-templates" 
@@ -175,10 +196,14 @@ const Navbar = () => {
             style={{ fontWeight: 'bold' }}
             onClick={closeMenu}
           >
-            {user.name}
+            👤 {user.name}
           </Link>
 
-          <button onClick={handleLogout} className="btn btn-sm" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)', width: menuOpen ? '100%' : 'auto' }}>
+          <button 
+            onClick={handleLogout} 
+            className="btn btn-sm"
+            type="button"
+          >
             Logout
           </button>
         </div>
