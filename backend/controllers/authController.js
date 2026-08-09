@@ -140,7 +140,7 @@ const refresh = async (req, res) => {
        FROM refresh_tokens rt
        JOIN users u ON rt.user_id = u.id
        WHERE rt.revoked = false AND rt.expires_at > now()
-       ORDER BY rt.created_at DESC`
+       ORDER BY rt.id DESC`
     );
 
     let matchingRow = null;

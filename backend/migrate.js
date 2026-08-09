@@ -30,8 +30,9 @@ async function migrate() {
       END $$;
     `);
 
-    // 2. Add relief columns to students if missing
+    // 2. Add relief columns to students if missing & must_change_password to users
     await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE students ADD COLUMN IF NOT EXISTS relief_type relief_type NOT NULL DEFAULT 'none';
       ALTER TABLE students ADD COLUMN IF NOT EXISTS relief_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
     `);

@@ -41,12 +41,12 @@ async function seedTestDatabase() {
     const passHash = '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui';
 
     const usersRes = await client.query(`
-      INSERT INTO users (name, phone, email, password_hash, role, status) VALUES
-        ('Test Admin', '9000000001', 'admin@test.com', '${passHash}', 'admin', 'active'),
-        ('Test Amir', '9000000002', 'amir@test.com', '${passHash}', 'amir', 'active'),
-        ('Test Supervisor', '9000000003', 'supervisor@test.com', '${passHash}', 'supervisor', 'active'),
-        ('Teacher Central', '9000000004', 'teacher1@test.com', '${passHash}', 'teacher', 'active'),
-        ('Teacher North', '9000000005', 'teacher2@test.com', '${passHash}', 'teacher', 'active')
+      INSERT INTO users (name, phone, email, password_hash, role, status, must_change_password) VALUES
+        ('Test Admin', '9000000001', 'admin@test.com', '${passHash}', 'admin', 'active', false),
+        ('Test Amir', '9000000002', 'amir@test.com', '${passHash}', 'amir', 'active', false),
+        ('Test Supervisor', '9000000003', 'supervisor@test.com', '${passHash}', 'supervisor', 'active', false),
+        ('Teacher Central', '9000000004', 'teacher1@test.com', '${passHash}', 'teacher', 'active', false),
+        ('Teacher North', '9000000005', 'teacher2@test.com', '${passHash}', 'teacher', 'active', false)
       RETURNING id, role;
     `);
 
