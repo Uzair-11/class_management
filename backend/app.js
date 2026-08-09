@@ -30,8 +30,15 @@ app.use(helmet({
 }));
 
 // CORS Configuration
+const corsOrigin =
+  process.env.CORS_ORIGIN ||
+  process.env.FRONTEND_URL ||
+  (process.env.NODE_ENV === 'production' ? null : 'http://localhost:5173');
+
+console.log(`[CORS] Allowed origin: ${corsOrigin}`);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: corsOrigin,
   credentials: true
 }));
 
