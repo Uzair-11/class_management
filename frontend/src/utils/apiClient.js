@@ -63,7 +63,9 @@ export const apiFetch = async (url, options = {}) => {
     try {
       const refreshRes = await fetch(buildApiUrl('/api/auth/refresh'), {
         method: 'POST',
-        credentials: 'include'
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ refreshToken: localStorage.getItem('refresh_token') || undefined })
       });
 
       if (refreshRes.ok) {

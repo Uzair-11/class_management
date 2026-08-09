@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setAuthTokenRef(null);
+    localStorage.removeItem('refresh_token');
   };
 
   useEffect(() => {
@@ -28,16 +29,20 @@ export const AuthProvider = ({ children }) => {
   // Silent refresh on app initial mount
   useEffect(() => {
     const silentRefresh = async () => {
+      const storedRefreshToken = localStorage.getItem('refresh_token');
       try {
         const res = await fetch(buildApiUrl('/api/auth/refresh'), {
           method: 'POST',
-          credentials: 'include'
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ refreshToken: storedRefreshToken || undefined })
         });
 
         if (res.ok) {
           const data = await res.json();
           setUser(data.user);
           updateToken(data.token);
+          if (data.refreshToken) localStorage.setItem('refresh_token', data.refreshToken);
         } else {
           console.warn('Silent refresh endpoint returned non-ok status:', res.status);
           handleForceLogout();
@@ -66,6 +71,9 @@ export const AuthProvider = ({ children }) => {
       throw new Error(data.message || 'Login failed');
     }
 
+    if (data.refreshToken) {
+      localStorage.setItem('refresh_token', data.refreshToken);
+    }
     setUser(data.user);
     updateToken(data.token);
     return data.user;

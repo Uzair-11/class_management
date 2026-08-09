@@ -44,8 +44,8 @@ const createAndStoreRefreshToken = async (user, res) => {
   // Set httpOnly cookie
   res.cookie('refresh_token', rawRefreshToken, {
     httpOnly: true,
-    secure: true,          // must be true when sameSite='none'
-    sameSite: 'none',      // required for cross-origin (Vercel → Render)
+    secure: true,
+    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
@@ -107,10 +107,11 @@ const login = async (req, res) => {
     failedAttempts.delete(phone);
 
     const accessToken = generateAccessToken(user);
-    await createAndStoreRefreshToken(user, res);
+    const rawRefreshToken = await createAndStoreRefreshToken(user, res);
 
     res.json({
       token: accessToken,
+      refreshToken: rawRefreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -128,10 +129,11 @@ const login = async (req, res) => {
 
 // POST /api/auth/refresh
 const refresh = async (req, res) => {
-  const rawRefreshToken = req.cookies?.refresh_token;
+  // Accept token from cookie (same-origin) OR from request body (cross-origin production)
+  const rawRefreshToken = req.cookies?.refresh_token || req.body?.refreshToken;
 
   if (!rawRefreshToken) {
-    return res.status(401).json({ message: 'Refresh token cookie missing' });
+    return res.status(401).json({ message: 'Refresh token missing' });
   }
 
   try {
