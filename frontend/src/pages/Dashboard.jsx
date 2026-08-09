@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../utils/apiClient';
 
 const Dashboard = () => {
   const { token, user } = useAuth();
@@ -15,9 +16,7 @@ const Dashboard = () => {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch('/api/reports/overview', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/reports/overview');
         const data = await res.json();
         if (res.ok) {
           setOverview(data);
