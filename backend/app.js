@@ -24,6 +24,9 @@ const path = require('path');
 
 const app = express();
 
+// Trust Render's reverse proxy so express-rate-limit reads X-Forwarded-For correctly
+app.set('trust proxy', 1);
+
 // Secure Headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
