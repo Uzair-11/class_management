@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,7 +24,7 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/users', {
+      const res = await fetch(buildApiUrl('/api/users'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const contentType = res.headers.get('content-type');
@@ -49,7 +50,7 @@ const Users = () => {
     setError('');
     setMsg('');
     try {
-      const res = await fetch('http://localhost:5000/api/users', {
+      const res = await fetch(buildApiUrl('/api/users'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +86,7 @@ const Users = () => {
     setError('');
     setMsg('');
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${editingUser.id}`, {
+      const res = await fetch(buildApiUrl(`/api/users/${editingUser.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +113,7 @@ const Users = () => {
   const handleDeactivate = async (userId) => {
     if (!window.confirm('Are you sure you want to deactivate this user?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
+      const res = await fetch(buildApiUrl(`/api/users/${userId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

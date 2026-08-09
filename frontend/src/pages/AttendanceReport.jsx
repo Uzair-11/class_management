@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,7 +20,7 @@ const AttendanceReport = () => {
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/branches', {
+      const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -35,7 +36,7 @@ const AttendanceReport = () => {
     setError('');
 
     try {
-      let url = `http://localhost:5000/api/reports/attendance?from=${fromDate}&to=${toDate}`;
+      let url = buildApiUrl(`/api/reports/attendance?from=${fromDate}&to=${toDate}`);
       if (selectedBranchId) url += `&branch_id=${selectedBranchId}`;
 
       const res = await fetch(url, {

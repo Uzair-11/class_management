@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,7 +31,7 @@ const CertificateTemplates = () => {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/certificate-templates', {
+      const res = await fetch(buildApiUrl('/api/certificate-templates'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -91,7 +92,7 @@ const CertificateTemplates = () => {
     if (templateName) formData.append('name', templateName);
 
     try {
-      const res = await fetch('http://localhost:5000/api/certificate-templates', {
+      const res = await fetch(buildApiUrl('/api/certificate-templates'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData
@@ -115,7 +116,7 @@ const CertificateTemplates = () => {
     setError('');
     setMsg('');
     try {
-      const res = await fetch(`http://localhost:5000/api/certificate-templates/${id}/activate`, {
+      const res = await fetch(buildApiUrl(`/api/certificate-templates/${id}/activate`), {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -135,7 +136,7 @@ const CertificateTemplates = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/certificate-templates/${selectedTemplate.id}/fields`, {
+      const res = await fetch(buildApiUrl(`/api/certificate-templates/${selectedTemplate.id}/fields`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -378,13 +379,13 @@ const CertificateTemplates = () => {
           >
             {selectedTemplate.file_type === 'image' ? (
               <img
-                src={`http://localhost:5000${selectedTemplate.file_path}`}
+                src={buildApiUrl(`${selectedTemplate.file_path}`)}
                 alt="Certificate Background"
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             ) : (
               <iframe
-                src={`http://localhost:5000${selectedTemplate.file_path}`}
+                src={buildApiUrl(`${selectedTemplate.file_path}`)}
                 title="PDF Background"
                 style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
               />

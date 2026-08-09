@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -17,7 +18,7 @@ const CertificateView = () => {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(`http://localhost:5000/api/certificates/${id}/render`, {
+        const res = await fetch(buildApiUrl(`/api/certificates/${id}/render`), {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -105,13 +106,13 @@ const CertificateView = () => {
         }}>
           {template.file_type === 'image' ? (
             <img
-              src={`http://localhost:5000${template.file_path}`}
+              src={buildApiUrl(`${template.file_path}`)}
               alt="Certificate Template"
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           ) : (
             <iframe
-              src={`http://localhost:5000${template.file_path}`}
+              src={buildApiUrl(`${template.file_path}`)}
               title="Certificate Template PDF"
               style={{ width: '100%', height: '100%', border: 'none' }}
             />

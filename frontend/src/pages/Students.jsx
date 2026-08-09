@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -29,8 +30,8 @@ const Students = () => {
   const fetchStudents = async (branchFilter = '') => {
     try {
       const url = branchFilter 
-        ? `http://localhost:5000/api/students?branch_id=${branchFilter}` 
-        : 'http://localhost:5000/api/students';
+        ? buildApiUrl(`/api/students?branch_id=${branchFilter}`) 
+        : buildApiUrl('/api/students');
         
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -49,8 +50,8 @@ const Students = () => {
   const fetchMetadata = async () => {
     try {
       const [cRes, bRes] = await Promise.all([
-        fetch('http://localhost:5000/api/courses', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:5000/api/branches', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+        fetch(buildApiUrl('/api/courses'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(buildApiUrl('/api/branches'), { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
       ]);
 
       if (cRes.ok) {
@@ -98,7 +99,7 @@ const Students = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/students', {
+      const res = await fetch(buildApiUrl('/api/students'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

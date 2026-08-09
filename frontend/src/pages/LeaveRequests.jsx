@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,7 +15,7 @@ const LeaveRequests = () => {
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/branches', {
+      const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) setBranches(await res.json());
@@ -28,7 +29,7 @@ const LeaveRequests = () => {
     setError('');
 
     try {
-      let url = 'http://localhost:5000/api/leave-requests?';
+      let url = buildApiUrl('/api/leave-requests?');
       if (selectedBranchFilter) url += `&branch_id=${selectedBranchFilter}`;
       if (selectedStatusFilter) url += `&status=${selectedStatusFilter}`;
 
@@ -60,7 +61,7 @@ const LeaveRequests = () => {
     setError('');
     setMsg('');
     try {
-      const res = await fetch(`http://localhost:5000/api/leave-requests/${id}/approve`, {
+      const res = await fetch(buildApiUrl(`/api/leave-requests/${id}/approve`), {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -78,7 +79,7 @@ const LeaveRequests = () => {
     setError('');
     setMsg('');
     try {
-      const res = await fetch(`http://localhost:5000/api/leave-requests/${id}/reject`, {
+      const res = await fetch(buildApiUrl(`/api/leave-requests/${id}/reject`), {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` }
       });

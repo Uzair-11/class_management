@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,7 +27,7 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/me', {
+      const res = await fetch(buildApiUrl('/api/auth/me'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -53,7 +54,7 @@ const Profile = () => {
     setProfileErr('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/profile', {
+      const res = await fetch(buildApiUrl('/api/auth/profile'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ const Profile = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/change-password', {
+      const res = await fetch(buildApiUrl('/api/auth/change-password'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

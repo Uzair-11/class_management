@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,7 +23,7 @@ const Holidays = () => {
 
   const fetchHolidays = async () => {
     try {
-      let url = 'http://localhost:5000/api/holidays';
+      let url = buildApiUrl('/api/holidays');
       if (selectedBranchFilter) {
         url += `?branch_id=${selectedBranchFilter}`;
       }
@@ -45,7 +46,7 @@ const Holidays = () => {
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/branches', {
+      const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -68,7 +69,7 @@ const Holidays = () => {
     setMsg('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/holidays', {
+      const res = await fetch(buildApiUrl('/api/holidays'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +100,7 @@ const Holidays = () => {
     if (!window.confirm('Are you sure you want to delete this holiday record?')) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/holidays/${holidayId}`, {
+      const res = await fetch(buildApiUrl(`/api/holidays/${holidayId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

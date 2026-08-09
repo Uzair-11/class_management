@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -20,7 +21,7 @@ const Machines = () => {
 
   const fetchMachines = async () => {
     try {
-      let url = 'http://localhost:5000/api/machines';
+      let url = buildApiUrl('/api/machines');
       if (selectedBranchFilter) {
         url += `?branch_id=${selectedBranchFilter}`;
       }
@@ -42,7 +43,7 @@ const Machines = () => {
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/branches', {
+      const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -66,7 +67,7 @@ const Machines = () => {
     setMsg('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/machines', {
+      const res = await fetch(buildApiUrl('/api/machines'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

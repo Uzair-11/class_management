@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { setAuthTokenRef, setLogoutHandlerRef } from '../utils/apiClient';
+import { buildApiUrl } from '../utils/apiConfig';
 
 const AuthContext = createContext(null);
 
@@ -28,7 +29,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const silentRefresh = async () => {
       try {
-        const res = await fetch('/api/auth/refresh', {
+        const res = await fetch(buildApiUrl('/api/auth/refresh'), {
           method: 'POST',
           credentials: 'include'
         });
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (phone, password) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(buildApiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -72,7 +73,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
+      await fetch(buildApiUrl('/api/auth/logout'), {
         method: 'POST',
         credentials: 'include'
       });

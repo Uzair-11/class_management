@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -51,7 +52,7 @@ const StudentDetail = () => {
 
   const fetchStudentDetail = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/students/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/students/${id}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -74,7 +75,7 @@ const StudentDetail = () => {
 
   const fetchExamAndCertificate = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/students/${id}/exam`, {
+      const res = await fetch(buildApiUrl(`/api/students/${id}/exam`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -94,7 +95,7 @@ const StudentDetail = () => {
 
   const fetchFeeCycles = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/students/${id}/fee-cycles`, {
+      const res = await fetch(buildApiUrl(`/api/students/${id}/fee-cycles`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -110,7 +111,7 @@ const StudentDetail = () => {
 
   const fetchAttendanceHistory = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/attendance/student/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/attendance/student/${id}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -124,7 +125,7 @@ const StudentDetail = () => {
 
   const fetchLeaveRequests = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/leave-requests?student_id=${id}`, {
+      const res = await fetch(buildApiUrl(`/api/leave-requests?student_id=${id}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -138,8 +139,8 @@ const StudentDetail = () => {
   const fetchDropdownData = async () => {
     try {
       const [cRes, bRes] = await Promise.all([
-        fetch('http://localhost:5000/api/courses', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:5000/api/branches', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+        fetch(buildApiUrl('/api/courses'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(buildApiUrl('/api/branches'), { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
       ]);
 
       if (cRes.ok) setCourses(await cRes.json());
@@ -164,7 +165,7 @@ const StudentDetail = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/students/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/students/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -180,7 +181,7 @@ const StudentDetail = () => {
         })
       });
 
-      await fetch(`http://localhost:5000/api/students/${id}/status`, {
+      await fetch(buildApiUrl(`/api/students/${id}/status`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -210,7 +211,7 @@ const StudentDetail = () => {
 
     try {
       const method = examData ? 'PUT' : 'POST';
-      const res = await fetch(`http://localhost:5000/api/students/${id}/exam`, {
+      const res = await fetch(buildApiUrl(`/api/students/${id}/exam`), {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -245,7 +246,7 @@ const StudentDetail = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/fee-cycles/${selectedCycleId}/payments`, {
+      const res = await fetch(buildApiUrl(`/api/fee-cycles/${selectedCycleId}/payments`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -276,7 +277,7 @@ const StudentDetail = () => {
     setMsg('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/leave-requests', {
+      const res = await fetch(buildApiUrl('/api/leave-requests'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -308,7 +309,7 @@ const StudentDetail = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/payments/${paymentId}`, {
+      const res = await fetch(buildApiUrl(`/api/payments/${paymentId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

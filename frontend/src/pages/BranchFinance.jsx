@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -35,7 +36,7 @@ const BranchFinance = () => {
 
   const fetchFinanceSummary = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/finance`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/finance`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -55,7 +56,7 @@ const BranchFinance = () => {
 
   const fetchExpenses = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/expenses`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/expenses`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) setExpenses(await res.json());
@@ -66,7 +67,7 @@ const BranchFinance = () => {
 
   const fetchSalaries = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/salaries`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/salaries`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) setSalaries(await res.json());
@@ -87,7 +88,7 @@ const BranchFinance = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/expenses`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/expenses`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +121,7 @@ const BranchFinance = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/salaries`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/salaries`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +152,7 @@ const BranchFinance = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/salaries/${salaryId}`, {
+      const res = await fetch(buildApiUrl(`/api/salaries/${salaryId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -176,7 +177,7 @@ const BranchFinance = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/transactions`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/transactions`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

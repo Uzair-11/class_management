@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +19,7 @@ const Branches = () => {
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/branches', {
+      const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const contentType = res.headers.get('content-type');
@@ -37,7 +38,7 @@ const Branches = () => {
 
   const fetchTeachers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/users?role=teacher', {
+      const res = await fetch(buildApiUrl('/api/users?role=teacher'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -56,7 +57,7 @@ const Branches = () => {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/branches', {
+      const res = await fetch(buildApiUrl('/api/branches'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -28,7 +29,7 @@ const BranchDetail = () => {
 
   const fetchBranchDetail = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -51,9 +52,9 @@ const BranchDetail = () => {
   const fetchDropdownUsers = async () => {
     try {
       const [tRes, sRes, aRes] = await Promise.all([
-        fetch('http://localhost:5000/api/users?role=teacher', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:5000/api/users?role=supervisor', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('http://localhost:5000/api/users?role=amir', { headers: { Authorization: `Bearer ${token}` } })
+        fetch(buildApiUrl('/api/users?role=teacher'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(buildApiUrl('/api/users?role=supervisor'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(buildApiUrl('/api/users?role=amir'), { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (tRes.ok) setTeachers(await tRes.json());
@@ -74,7 +75,7 @@ const BranchDetail = () => {
     setMsg('');
     setError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +103,7 @@ const BranchDetail = () => {
     e.preventDefault();
     if (!selectedSupervisor) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/assign-supervisor`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/assign-supervisor`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +122,7 @@ const BranchDetail = () => {
 
   const handleUnassignSupervisor = async (userId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/unassign-supervisor/${userId}`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/unassign-supervisor/${userId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -135,7 +136,7 @@ const BranchDetail = () => {
     e.preventDefault();
     if (!selectedAmir) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/assign-amir`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/assign-amir`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +155,7 @@ const BranchDetail = () => {
 
   const handleUnassignAmir = async (userId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/branches/${id}/unassign-amir/${userId}`, {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}/unassign-amir/${userId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

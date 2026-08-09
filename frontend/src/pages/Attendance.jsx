@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,7 +23,7 @@ const Attendance = () => {
   // Fetch branches available to user
   const fetchBranches = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/branches', {
+      const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -49,7 +50,7 @@ const Attendance = () => {
     setSummary(null);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/attendance?branch_id=${selectedBranchId}&date=${date}`, {
+      const res = await fetch(buildApiUrl(`/api/attendance?branch_id=${selectedBranchId}&date=${date}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const contentType = res.headers.get('content-type');
@@ -121,7 +122,7 @@ const Attendance = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/attendance', {
+      const res = await fetch(buildApiUrl('/api/attendance'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +153,7 @@ const Attendance = () => {
     setMsg('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/attendance/lock', {
+      const res = await fetch(buildApiUrl('/api/attendance/lock'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

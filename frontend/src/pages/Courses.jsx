@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,7 +21,7 @@ const Courses = () => {
 
   const fetchCourses = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/courses', {
+      const res = await fetch(buildApiUrl('/api/courses'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const contentType = res.headers.get('content-type');
@@ -44,7 +45,7 @@ const Courses = () => {
     setMsg('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/courses', {
+      const res = await fetch(buildApiUrl('/api/courses'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ const Courses = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/courses/${editingCourse.id}`, {
+      const res = await fetch(buildApiUrl(`/api/courses/${editingCourse.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

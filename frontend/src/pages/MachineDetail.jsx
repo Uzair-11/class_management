@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -28,7 +29,7 @@ const MachineDetail = () => {
 
   const fetchMachineDetail = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/machines/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/machines/${id}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -47,7 +48,7 @@ const MachineDetail = () => {
 
   const fetchMaintenanceLogs = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/machines/${id}/maintenance`, {
+      const res = await fetch(buildApiUrl(`/api/machines/${id}/maintenance`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -70,7 +71,7 @@ const MachineDetail = () => {
     setMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/machines/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/machines/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +103,7 @@ const MachineDetail = () => {
     const costVal = parseFloat(maintCost || 0);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/machines/${id}/maintenance`, {
+      const res = await fetch(buildApiUrl(`/api/machines/${id}/maintenance`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

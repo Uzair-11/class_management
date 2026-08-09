@@ -1,3 +1,5 @@
+import { buildApiUrl } from './apiConfig';
+
 let tokenRef = { current: null };
 let logoutHandlerRef = { current: null };
 
@@ -22,6 +24,7 @@ const onRefreshed = (newToken) => {
 };
 
 export const apiFetch = async (url, options = {}) => {
+  const fullUrl = buildApiUrl(url);
   const headers = { ...options.headers };
   
   if (tokenRef.current && !headers['Authorization']) {
@@ -34,7 +37,7 @@ export const apiFetch = async (url, options = {}) => {
     credentials: 'include'
   };
 
-  let response = await fetch(url, fetchOptions);
+  let response = await fetch(fullUrl, fetchOptions);
 
   if (response.status === 401 && !options._retry) {
     if (isRefreshing) {
@@ -45,7 +48,7 @@ export const apiFetch = async (url, options = {}) => {
           }
           headers['Authorization'] = `Bearer ${newToken}`;
           try {
-            const res = await fetch(url, { ...options, headers, credentials: 'include' });
+            const res = await fetch(fullUrl, { ...options, headers, credentials: 'include' });
             resolve(res);
           } catch (err) {
             reject(err);
@@ -58,7 +61,7 @@ export const apiFetch = async (url, options = {}) => {
     isRefreshing = true;
 
     try {
-      const refreshRes = await fetch('/api/auth/refresh', {
+      const refreshRes = await fetch(buildApiUrl('/api/auth/refresh'), {
         method: 'POST',
         credentials: 'include'
       });
@@ -70,7 +73,7 @@ export const apiFetch = async (url, options = {}) => {
         onRefreshed(refreshData.token);
 
         headers['Authorization'] = `Bearer ${refreshData.token}`;
-        return await fetch(url, { ...options, headers, credentials: 'include', _retry: true });
+        return await fetch(fullUrl, { ...options, headers, credentials: 'include', _retry: true });
       } else {
         isRefreshing = false;
         onRefreshed(null);

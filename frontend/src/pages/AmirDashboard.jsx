@@ -1,3 +1,4 @@
+import { buildApiUrl } from '../utils/apiConfig';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Compass, Target, Globe } from 'lucide-react';
@@ -7,7 +8,7 @@ const AmirDashboard = () => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/dashboard/amir', {
+    fetch(buildApiUrl('/api/dashboard/amir'), {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then((res) => res.json())
