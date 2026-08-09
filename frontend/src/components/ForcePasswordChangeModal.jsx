@@ -31,7 +31,7 @@ export default function ForcePasswordChangeModal() {
     setLoading(true);
     try {
       const res = await apiFetch('/api/auth/change-password', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           current_password: currentPassword,

@@ -44,8 +44,8 @@ const createAndStoreRefreshToken = async (user, res) => {
   // Set httpOnly cookie
   res.cookie('refresh_token', rawRefreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true,          // must be true when sameSite='none'
+    sameSite: 'none',      // required for cross-origin (Vercel → Render)
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
