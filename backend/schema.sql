@@ -88,19 +88,6 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- ---------- REFRESH TOKENS ----------
--- Note: A periodic background cleanup job (e.g. pg_cron or node schedule) should delete expired rows (WHERE expires_at < now() OR revoked = true) in production.
-CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id            SERIAL PRIMARY KEY,
-    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash    TEXT NOT NULL,
-    expires_at    TIMESTAMP NOT NULL,
-    created_at    TIMESTAMP NOT NULL DEFAULT now(),
-    revoked       BOOLEAN NOT NULL DEFAULT false
-);
-
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
-
 -- ---------- USERS ----------
 -- Schema Migration Note: Added must_change_password column for initial admin password reset enforcement
 CREATE TABLE IF NOT EXISTS users (
@@ -114,6 +101,19 @@ CREATE TABLE IF NOT EXISTS users (
     must_change_password  BOOLEAN NOT NULL DEFAULT false,
     created_at            TIMESTAMP NOT NULL DEFAULT now()
 );
+
+-- ---------- REFRESH TOKENS ----------
+-- Note: A periodic background cleanup job (e.g. pg_cron or node schedule) should delete expired rows (WHERE expires_at < now() OR revoked = true) in production.
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id            SERIAL PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash    TEXT NOT NULL,
+    expires_at    TIMESTAMP NOT NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT now(),
+    revoked       BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 
 -- ---------- BRANCHES ----------
 CREATE TABLE IF NOT EXISTS branches (
@@ -343,10 +343,5 @@ INSERT INTO courses (name, fee, duration_months) VALUES
     ('Designer Course', 500, 3)
 ON CONFLICT DO NOTHING;
 
--- Seed default users (passwords are 'Admin@123')
-INSERT INTO users (name, phone, email, password_hash, role, status) VALUES
-  ('System Admin', '9000000001', 'admin@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'admin', 'active'),
-  ('Amir Leader', '9000000002', 'amir@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'amir', 'active'),
-  ('Area Supervisor', '9000000003', 'supervisor@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'supervisor', 'active'),
-  ('Class Teacher', '9000000004', 'teacher@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'teacher', 'active')
-ON CONFLICT (phone) DO NOTHING;
+-- Admin user seeding is handled by seedProductionDb.js at deploy time.
+-- Do NOT add hardcoded users with default passwords here.
