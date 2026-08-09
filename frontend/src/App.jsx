@@ -34,12 +34,15 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+import ForcePasswordChangeModal from './components/ForcePasswordChangeModal';
+
 function AppRoutes() {
   const { user } = useAuth();
 
   return (
     <>
       <Navbar />
+      <ForcePasswordChangeModal />
       <div className="page-container">
         <Routes>
           <Route path="/login" element={<Login />} />

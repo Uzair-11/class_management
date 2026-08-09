@@ -38,7 +38,7 @@ async function seedTestDatabase() {
     `);
 
     // 1. Seed Users (All passwords 'Admin@123')
-    const passHash = '$2b$10$r50vB/ge88ouwsEpF.gnouBhjT5tTzVE6CsSmzpoakJVL9ns6c9Wa';
+    const passHash = '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui';
 
     const usersRes = await client.query(`
       INSERT INTO users (name, phone, email, password_hash, role, status) VALUES
@@ -46,7 +46,7 @@ async function seedTestDatabase() {
         ('Test Amir', '9000000002', 'amir@test.com', '${passHash}', 'amir', 'active'),
         ('Test Supervisor', '9000000003', 'supervisor@test.com', '${passHash}', 'supervisor', 'active'),
         ('Teacher Central', '9000000004', 'teacher1@test.com', '${passHash}', 'teacher', 'active'),
-        ('Teacher North', '9825920189', 'teacher2@test.com', '${passHash}', 'teacher', 'active')
+        ('Teacher North', '9000000005', 'teacher2@test.com', '${passHash}', 'teacher', 'active')
       RETURNING id, role;
     `);
 
@@ -92,10 +92,10 @@ async function seedTestDatabase() {
     // 5. Students
     await client.query(`
       INSERT INTO students (name, phone, address, branch_id, course_id, admission_date, status, relief_type, relief_amount) VALUES
-        ('Student NoRelief', '9000000001', 'Address 1', ${branch1Id}, ${course1Id}, CURRENT_DATE, 'active', 'none', 0.00),
-        ('Student PartialRelief', '9000000002', 'Address 2', ${branch1Id}, ${course1Id}, CURRENT_DATE, 'active', 'partial', 50.00),
-        ('Student FullRelief', '9000000003', 'Address 3', ${branch1Id}, ${course2Id}, CURRENT_DATE, 'active', 'full', 500.00),
-        ('Student Branch2', '9000000004', 'Address 4', ${branch2Id}, ${course1Id}, CURRENT_DATE, 'active', 'none', 0.00);
+        ('Student NoRelief', '9000000101', 'Address 1', ${branch1Id}, ${course1Id}, CURRENT_DATE, 'active', 'none', 0.00),
+        ('Student PartialRelief', '9000000102', 'Address 2', ${branch1Id}, ${course1Id}, CURRENT_DATE, 'active', 'partial', 50.00),
+        ('Student FullRelief', '9000000103', 'Address 3', ${branch1Id}, ${course2Id}, CURRENT_DATE, 'active', 'full', 500.00),
+        ('Student Branch2', '9000000104', 'Address 4', ${branch2Id}, ${course1Id}, CURRENT_DATE, 'active', 'none', 0.00);
     `);
 
     // 6. Holidays

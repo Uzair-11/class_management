@@ -44,7 +44,7 @@ describe('SECTION 2: Branches & Users (BRU-01 to BRU-12)', () => {
   test('BRU-03: Assign teacher to branch', async () => {
     // Get teacher 2 ID
     const usersRes = await request(app).get('/api/users').set('Authorization', `Bearer ${adminToken}`);
-    const teacher2 = usersRes.body.find(u => u.phone === '9825920189');
+    const teacher2 = usersRes.body.find(u => u.phone === '9000000005');
 
     const res = await request(app)
       .put('/api/branches/1')
@@ -111,11 +111,16 @@ describe('SECTION 2: Branches & Users (BRU-01 to BRU-12)', () => {
   });
 
   test('BRU-09: Deactivate user (soft delete)', async () => {
-    const usersRes = await request(app).get('/api/users').set('Authorization', `Bearer ${adminToken}`);
-    const teacher2 = usersRes.body.find(u => u.phone === '9825920189');
+    // Create temp user for deactivation
+    const createRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Deactivate User', phone: '9900011199', email: 'deactivate@test.com', password: 'Admin@123', role: 'teacher' });
+
+    const tempUser = createRes.body.user;
 
     const res = await request(app)
-      .delete(`/api/users/${teacher2.id}`)
+      .delete(`/api/users/${tempUser.id}`)
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.statusCode).toBe(200);
@@ -123,14 +128,19 @@ describe('SECTION 2: Branches & Users (BRU-01 to BRU-12)', () => {
   });
 
   test('BRU-10: Inactive user cannot log in', async () => {
-    const usersRes = await request(app).get('/api/users').set('Authorization', `Bearer ${adminToken}`);
-    const teacher2 = usersRes.body.find(u => u.phone === '9825920189');
+    // Create temp user and deactivate
+    const createRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Deactivate User 2', phone: '9900011188', email: 'deactivate2@test.com', password: 'Admin@123', role: 'teacher' });
+
+    const tempUser = createRes.body.user;
 
     // Deactivate
-    await request(app).delete(`/api/users/${teacher2.id}`).set('Authorization', `Bearer ${adminToken}`);
+    await request(app).delete(`/api/users/${tempUser.id}`).set('Authorization', `Bearer ${adminToken}`);
 
     // Try login
-    const loginRes = await request(app).post('/api/auth/login').send({ phone: '9825920189', password: 'Admin@123' });
+    const loginRes = await request(app).post('/api/auth/login').send({ phone: '9900011188', password: 'Admin@123' });
     expect(loginRes.statusCode).toBe(401);
   });
 

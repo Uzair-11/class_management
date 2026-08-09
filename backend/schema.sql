@@ -102,15 +102,17 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 
 -- ---------- USERS ----------
+-- Schema Migration Note: Added must_change_password column for initial admin password reset enforcement
 CREATE TABLE IF NOT EXISTS users (
-    id              SERIAL PRIMARY KEY,
-    name            TEXT NOT NULL,
-    phone           TEXT UNIQUE NOT NULL,
-    email           TEXT UNIQUE,
-    password_hash   TEXT NOT NULL,
-    role            user_role NOT NULL,
-    status          user_status NOT NULL DEFAULT 'active',
-    created_at      TIMESTAMP NOT NULL DEFAULT now()
+    id                    SERIAL PRIMARY KEY,
+    name                  TEXT NOT NULL,
+    phone                 TEXT UNIQUE NOT NULL,
+    email                 TEXT UNIQUE,
+    password_hash         TEXT NOT NULL,
+    role                  user_role NOT NULL,
+    status                user_status NOT NULL DEFAULT 'active',
+    must_change_password  BOOLEAN NOT NULL DEFAULT false,
+    created_at            TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- ---------- BRANCHES ----------
@@ -343,8 +345,8 @@ ON CONFLICT DO NOTHING;
 
 -- Seed default users (passwords are 'Admin@123')
 INSERT INTO users (name, phone, email, password_hash, role, status) VALUES
-  ('System Admin', '9000000001', 'admin@example.com', '$2b$10$r50vB/ge88ouwsEpF.gnouBhjT5tTzVE6CsSmzpoakJVL9ns6c9Wa', 'admin', 'active'),
-  ('Amir Leader', '9000000002', 'amir@example.com', '$2b$10$r50vB/ge88ouwsEpF.gnouBhjT5tTzVE6CsSmzpoakJVL9ns6c9Wa', 'amir', 'active'),
-  ('Area Supervisor', '9000000003', 'supervisor@example.com', '$2b$10$r50vB/ge88ouwsEpF.gnouBhjT5tTzVE6CsSmzpoakJVL9ns6c9Wa', 'supervisor', 'active'),
-  ('Class Teacher', '9000000004', 'teacher@example.com', '$2b$10$r50vB/ge88ouwsEpF.gnouBhjT5tTzVE6CsSmzpoakJVL9ns6c9Wa', 'teacher', 'active')
+  ('System Admin', '9000000001', 'admin@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'admin', 'active'),
+  ('Amir Leader', '9000000002', 'amir@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'amir', 'active'),
+  ('Area Supervisor', '9000000003', 'supervisor@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'supervisor', 'active'),
+  ('Class Teacher', '9000000004', 'teacher@example.com', '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui', 'teacher', 'active')
 ON CONFLICT (phone) DO NOTHING;

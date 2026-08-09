@@ -20,6 +20,8 @@ test-results/
 playwright-report/
 *.log
 logs/
+# Uploads & Temp Media
+backend/uploads/
 .tempmediaStorage/
 
 # OS / Editor junk

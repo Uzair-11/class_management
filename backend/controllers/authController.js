@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 
 // Hash for 'Admin@123'
-const DEFAULT_HASH = '$2b$10$r50vB/ge88ouwsEpF.gnouBhjT5tTzVE6CsSmzpoakJVL9ns6c9Wa';
+const DEFAULT_HASH = '$2b$10$0Mswo0g6eu2k0.1FBUdJuervtajj54EPJDPwBIx2Q85HArcqjnmui';
 
 // Pre-seeded users requested by specification
 const mockUsers = [
@@ -74,7 +74,7 @@ const login = async (req, res) => {
     let user;
     try {
       const result = await pool.query(
-        'SELECT id, name, phone, email, password_hash, role, status FROM users WHERE phone = $1',
+        'SELECT id, name, phone, email, password_hash, role, status, must_change_password FROM users WHERE phone = $1',
         [phone]
       );
       user = result.rows[0];
@@ -111,7 +111,14 @@ const login = async (req, res) => {
 
     res.json({
       token: accessToken,
-      user: { id: user.id, name: user.name, phone: user.phone, email: user.email, role: user.role }
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        must_change_password: !!user.must_change_password
+      }
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -129,7 +136,7 @@ const refresh = async (req, res) => {
 
   try {
     const tokensRes = await pool.query(
-      `SELECT rt.id, rt.user_id, rt.token_hash, rt.expires_at, rt.revoked, u.name, u.phone, u.email, u.role, u.status
+      `SELECT rt.id, rt.user_id, rt.token_hash, rt.expires_at, rt.revoked, u.name, u.phone, u.email, u.role, u.status, u.must_change_password
        FROM refresh_tokens rt
        JOIN users u ON rt.user_id = u.id
        WHERE rt.revoked = false AND rt.expires_at > now()
@@ -165,7 +172,8 @@ const refresh = async (req, res) => {
         name: matchingRow.name,
         phone: matchingRow.phone,
         email: matchingRow.email,
-        role: matchingRow.role
+        role: matchingRow.role,
+        must_change_password: !!matchingRow.must_change_password
       }
     });
   } catch (err) {
@@ -206,7 +214,7 @@ const getMe = async (req, res) => {
     let user;
     try {
       const result = await pool.query(
-        'SELECT id, name, phone, email, role, status FROM users WHERE id = $1',
+        'SELECT id, name, phone, email, role, status, must_change_password FROM users WHERE id = $1',
         [req.user.id]
       );
       user = result.rows[0];
@@ -241,7 +249,7 @@ const updateProfile = async (req, res) => {
              email = $2,
              phone = COALESCE($3, phone)
          WHERE id = $4
-         RETURNING id, name, phone, email, role, status`,
+         RETURNING id, name, phone, email, role, status, must_change_password`,
         [name, email || null, phone || null, userId]
       );
       updatedUser = result.rows[0];
@@ -260,7 +268,7 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const newToken = generateToken(updatedUser);
+    const newToken = generateAccessToken(updatedUser);
 
     res.json({
       message: 'Profile updated successfully',
@@ -273,7 +281,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// PUT /api/auth/change-password — update user password
+// POST /api/auth/change-password — update user password and clear must_change_password
 const changePassword = async (req, res) => {
   const { current_password, new_password } = req.body;
   const userId = req.user.id;
@@ -309,9 +317,10 @@ const changePassword = async (req, res) => {
     const newHash = await bcrypt.hash(new_password, salt);
 
     try {
-      await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+      await pool.query('UPDATE users SET password_hash = $1, must_change_password = false WHERE id = $2', [newHash, userId]);
     } catch (dbErr) {
       user.password_hash = newHash;
+      user.must_change_password = false;
     }
 
     res.json({ message: 'Password updated successfully' });
