@@ -70,7 +70,7 @@ const Dashboard = () => {
           {overview.branches.map(b => (
             <div key={`tdb-${b.branch_id}`}>
               {/* Quick Stat Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div className="card" style={{ borderLeft: '4px solid var(--color-primary)' }}>
                   <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>My Branch</div>
                   <div style={{ fontSize: '1.4rem', fontWeight: 'bold', marginTop: '0.2rem' }}>{b.branch_name}</div>
@@ -101,23 +101,23 @@ const Dashboard = () => {
               {/* Quick Action Navigation Grid */}
               <div className="card" style={{ marginBottom: '1.5rem' }}>
                 <h3>Quick Management Actions</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                  <Link to="/attendance" className="btn btn-black" style={{ height: '60px', flexDirection: 'column' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                  <Link to="/attendance" className="btn btn-black btn-mobile-full" style={{ height: 'auto', minHeight: '60px', flexDirection: 'column' }}>
                     <span>📋 Mark Attendance</span>
                     <span style={{ fontSize: '0.75rem', fontWeight: 'normal', opacity: 0.8 }}>Daily class sheet</span>
                   </Link>
 
-                  <Link to="/students" className="btn" style={{ height: '60px', flexDirection: 'column' }}>
+                  <Link to="/students" className="btn btn-mobile-full" style={{ height: 'auto', minHeight: '60px', flexDirection: 'column' }}>
                     <span>👩‍🎓 Manage Students</span>
                     <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--color-text-secondary)' }}>Directory & payments</span>
                   </Link>
 
-                  <Link to="/machines" className="btn" style={{ height: '60px', flexDirection: 'column' }}>
+                  <Link to="/machines" className="btn btn-mobile-full" style={{ height: 'auto', minHeight: '60px', flexDirection: 'column' }}>
                     <span>🧵 Machine Inventory</span>
                     <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--color-text-secondary)' }}>Log repairs & status</span>
                   </Link>
 
-                  <Link to={`/branches/${b.branch_id}/finance`} className="btn" style={{ height: '60px', flexDirection: 'column' }}>
+                  <Link to={`/branches/${b.branch_id}/finance`} className="btn btn-mobile-full" style={{ height: 'auto', minHeight: '60px', flexDirection: 'column' }}>
                     <span>📊 Branch Finance</span>
                     <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--color-text-secondary)' }}>Expenses & ledger</span>
                   </Link>
@@ -132,7 +132,7 @@ const Dashboard = () => {
       {isMultiBranch && overview && (
         <div>
           {/* Organization Wide Summary Top Cards (Admin only or multi-branch totals) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
             <div className="card" style={{ borderTop: '4px solid var(--color-primary)' }}>
               <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Accessible Branches</div>
               <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem' }}>{overview.overall.total_branches}</div>
@@ -162,13 +162,13 @@ const Dashboard = () => {
 
           {/* Multi-Branch Side-by-Side Table */}
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
               <h3>Branch Performance Oversight</h3>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <Link to="/reports/attendance" className="btn btn-sm">
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <Link to="/reports/attendance" className="btn btn-sm btn-mobile-full">
                   📊 Attendance Report
                 </Link>
-                <Link to="/reports/fees" className="btn btn-sm">
+                <Link to="/reports/fees" className="btn btn-sm btn-mobile-full">
                   💰 Fee Collection Report
                 </Link>
               </div>

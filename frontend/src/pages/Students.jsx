@@ -157,13 +157,13 @@ const Students = () => {
             Enrollment, course assignments, and fee status tracking
           </p>
         </div>
-        <button onClick={() => setShowAddModal(!showAddModal)} className="btn btn-black">
+        <button onClick={() => setShowAddModal(!showAddModal)} className="btn btn-black btn-mobile-full">
           {showAddModal ? 'Cancel' : '+ Add Student'}
         </button>
       </div>
 
       {/* Summary Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="card" style={{ borderLeft: '4px solid var(--color-primary)' }}>
           <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Total Students</div>
           <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem' }}>{totalStudents}</div>
@@ -225,7 +225,7 @@ const Students = () => {
         <div className="card">
           <h3>Register New Student</h3>
           <form onSubmit={handleCreateStudent} style={{ marginTop: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
                 <label>Student Full Name *</label>
                 <input
