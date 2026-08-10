@@ -1,19 +1,27 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const Students = () => {
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
+
   const [students, setStudents] = useState([]);
   const [branches, setBranches] = useState([]);
   const [courses, setCourses] = useState([]);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState('');
-  const [msg, setMsg] = useState('');
 
   // Form State
   const [name, setName] = useState('');
@@ -27,7 +35,9 @@ const Students = () => {
   const [reliefType, setReliefType] = useState('none');
   const [reliefAmount, setReliefAmount] = useState('0');
 
-  const fetchStudents = async (branchFilter = '') => {
+  const fetchStudents = useCallback(async (branchFilter = '') => {
+    setLoading(true);
+    setError('');
     try {
       const url = branchFilter 
         ? buildApiUrl(`/api/students?branch_id=${branchFilter}`) 
@@ -40,21 +50,25 @@ const Students = () => {
       if (contentType && contentType.includes('application/json')) {
         const data = await res.json();
         if (res.ok) setStudents(data);
-        else setError(data.message);
+        else setError(data.message || 'Failed to fetch students directory');
+      } else {
+        setError('Unexpected response from server');
       }
     } catch (err) {
-      console.error(err);
+      setError(err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token]);
 
-  const fetchMetadata = async () => {
+  const fetchMetadata = useCallback(async () => {
     try {
       const [cRes, bRes] = await Promise.all([
         fetch(buildApiUrl('/api/courses'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(buildApiUrl('/api/branches'), { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
       ]);
 
-      if (cRes.ok) {
+      if (cRes && cRes.ok) {
         const cData = await cRes.json();
         setCourses(cData);
         if (cData.length > 0) setCourseId(cData[0].id.toString());
@@ -66,14 +80,14 @@ const Students = () => {
         if (bData.length > 0) setBranchId(bData[0].id.toString());
       }
     } catch (err) {
-      console.error(err);
+      console.error('Metadata fetch error:', err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchStudents(selectedBranchFilter);
     fetchMetadata();
-  }, [token, selectedBranchFilter]);
+  }, [fetchStudents, fetchMetadata, selectedBranchFilter]);
 
   // Selected Course details for live fee calculation
   const selectedCourseObj = courses.find(c => c.id.toString() === courseId.toString());
@@ -91,12 +105,13 @@ const Students = () => {
   const handleCreateStudent = async (e) => {
     e.preventDefault();
     setError('');
-    setMsg('');
 
     if (computedRelief > originalFee) {
       setError('Relief amount cannot exceed original course fee');
       return;
     }
+
+    setSubmitting(true);
 
     try {
       const res = await fetch(buildApiUrl('/api/students'), {
@@ -120,7 +135,7 @@ const Students = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to register student');
 
-      setMsg('Student registered successfully!');
+      showSuccess(`✓ Student "${name}" registered successfully!`);
       setShowAddModal(false);
       setName('');
       setPhone('');
@@ -129,13 +144,15 @@ const Students = () => {
       setReliefAmount('0');
       fetchStudents(selectedBranchFilter);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to register student');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   // Filter students by Search Query (Name/Phone)
   const filteredStudents = students.filter(s => {
-    const nameMatch = s.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const nameMatch = s.name ? s.name.toLowerCase().includes(searchQuery.toLowerCase()) : false;
     const phoneMatch = s.phone ? s.phone.includes(searchQuery) : false;
     return nameMatch || phoneMatch;
   });
@@ -183,8 +200,13 @@ const Students = () => {
         </div>
       </div>
 
-      {msg && <div style={{ border: '1px solid var(--color-primary)', padding: '0.5rem', marginBottom: '1rem', background: 'var(--color-primary-light)' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && !loading && (
+        <ErrorState
+          error={error}
+          title="Directory Couldn't Load"
+          onRetry={() => fetchStudents(selectedBranchFilter)}
+        />
+      )}
 
       {/* Filter and Search Controls Row */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -222,8 +244,10 @@ const Students = () => {
 
       {/* Add Student Card */}
       {showAddModal && (
-        <div className="card">
+        <div className="card" style={{ borderTop: '4px solid var(--color-primary)' }}>
           <h3>Register New Student</h3>
+          {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
           <form onSubmit={handleCreateStudent} style={{ marginTop: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
@@ -235,6 +259,7 @@ const Students = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Ayesha Siddiqui"
                   required
+                  disabled={submitting}
                 />
               </div>
 
@@ -246,6 +271,7 @@ const Students = () => {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Contact phone"
+                  disabled={submitting}
                 />
               </div>
 
@@ -256,6 +282,7 @@ const Students = () => {
                   value={branchId}
                   onChange={(e) => setBranchId(e.target.value)}
                   required
+                  disabled={submitting}
                 >
                   <option value="">-- Select Branch --</option>
                   {branches.length > 0 ? (
@@ -275,6 +302,7 @@ const Students = () => {
                   value={courseId}
                   onChange={(e) => setCourseId(e.target.value)}
                   required
+                  disabled={submitting}
                 >
                   {courses.map(c => (
                     <option key={`sc-${c.id}`} value={c.id}>{c.name} (₹{c.fee})</option>
@@ -289,6 +317,7 @@ const Students = () => {
                   className="form-input"
                   value={admissionDate}
                   onChange={(e) => setAdmissionDate(e.target.value)}
+                  disabled={submitting}
                 />
               </div>
             </div>
@@ -301,6 +330,7 @@ const Students = () => {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Full residential address"
+                disabled={submitting}
               />
             </div>
 
@@ -317,6 +347,7 @@ const Students = () => {
                       setReliefType(e.target.value);
                       if (e.target.value === 'none') setReliefAmount('0');
                     }}
+                    disabled={submitting}
                   >
                     <option value="none">None (Full Fee)</option>
                     <option value="partial">Partial Relief</option>
@@ -334,6 +365,7 @@ const Students = () => {
                       onChange={(e) => setReliefAmount(e.target.value)}
                       min="0"
                       max={originalFee}
+                      disabled={submitting}
                     />
                   </div>
                 )}
@@ -347,35 +379,55 @@ const Students = () => {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-black" style={{ marginTop: '1rem' }}>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={submitting}
+              loadingText="Registering Student... ⟳"
+              style={{ marginTop: '1rem' }}
+            >
               Save & Register Student
-            </button>
+            </LoadingButton>
           </form>
         </div>
       )}
 
-      {/* Students Table */}
-      <div className="table-responsive">
-        <table className="plain-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Student Name</th>
-              <th>Phone</th>
-              <th>Branch</th>
-              <th>Course</th>
-              <th>Status</th>
-              <th>Balance Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStudents.length === 0 ? (
+      {/* Students Table or Skeleton / Empty State */}
+      {loading ? (
+        <SkeletonLoader type="table" rows={6} columns={8} />
+      ) : students.length === 0 ? (
+        <EmptyState
+          type="no-data"
+          title="No Students Registered Yet"
+          message="No student admissions have been registered in this branch directory."
+          actionText="+ Register First Student"
+          onAction={() => setShowAddModal(true)}
+        />
+      ) : filteredStudents.length === 0 ? (
+        <EmptyState
+          type="no-results"
+          title="No Students Match Search"
+          message={`No student matching "${searchQuery}" was found.`}
+          actionText="Reset Search"
+          onAction={() => setSearchQuery('')}
+        />
+      ) : (
+        <div className="table-responsive">
+          <table className="plain-table">
+            <thead>
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>No students match your search criteria</td>
+                <th>ID</th>
+                <th>Student Name</th>
+                <th>Phone</th>
+                <th>Branch</th>
+                <th>Course</th>
+                <th>Status</th>
+                <th>Balance Status</th>
+                <th>Action</th>
               </tr>
-            ) : (
-              filteredStudents.map(s => {
+            </thead>
+            <tbody>
+              {filteredStudents.map(s => {
                 const bal = s.balance !== null && s.balance !== undefined ? parseFloat(s.balance) : parseFloat(s.final_fee || 0);
                 return (
                   <tr key={`st-${s.id}`}>
@@ -407,11 +459,11 @@ const Students = () => {
                     </td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

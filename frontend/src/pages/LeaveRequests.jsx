@@ -1,19 +1,26 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const LeaveRequests = () => {
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
+
   const [requests, setRequests] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
 
   const [loading, setLoading] = useState(true);
+  const [reviewingId, setReviewingId] = useState(null);
   const [error, setError] = useState('');
-  const [msg, setMsg] = useState('');
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -22,9 +29,9 @@ const LeaveRequests = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
 
-  const fetchLeaveRequests = async () => {
+  const fetchLeaveRequests = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -43,23 +50,23 @@ const LeaveRequests = () => {
         setError(data.message || 'Failed to fetch leave requests');
       }
     } catch (err) {
-      setError('Error connecting to leave requests service');
+      setError(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, selectedBranchFilter, selectedStatusFilter]);
 
   useEffect(() => {
     fetchBranches();
-  }, [token]);
+  }, [fetchBranches]);
 
   useEffect(() => {
     fetchLeaveRequests();
-  }, [token, selectedBranchFilter, selectedStatusFilter]);
+  }, [fetchLeaveRequests]);
 
   const handleApprove = async (id) => {
     setError('');
-    setMsg('');
+    setReviewingId(id);
     try {
       const res = await fetch(buildApiUrl(`/api/leave-requests/${id}/approve`), {
         method: 'PUT',
@@ -68,16 +75,18 @@ const LeaveRequests = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to approve leave request');
 
-      setMsg(data.message);
+      showSuccess('✓ Leave request approved successfully');
       fetchLeaveRequests();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to approve leave request');
+    } finally {
+      setReviewingId(null);
     }
   };
 
   const handleReject = async (id) => {
     setError('');
-    setMsg('');
+    setReviewingId(id);
     try {
       const res = await fetch(buildApiUrl(`/api/leave-requests/${id}/reject`), {
         method: 'PUT',
@@ -86,10 +95,12 @@ const LeaveRequests = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to reject leave request');
 
-      setMsg(data.message);
+      showSuccess('✓ Leave request rejected');
       fetchLeaveRequests();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to reject leave request');
+    } finally {
+      setReviewingId(null);
     }
   };
 
@@ -106,8 +117,13 @@ const LeaveRequests = () => {
         </div>
       </div>
 
-      {msg && <div style={{ border: '1px solid var(--color-primary)', padding: '0.5rem', marginBottom: '1rem', background: 'var(--color-primary-light)' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && !loading && (
+        <ErrorState
+          error={error}
+          title="Leave Requests Unavailable"
+          onRetry={fetchLeaveRequests}
+        />
+      )}
 
       {/* Filter Row */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -119,6 +135,7 @@ const LeaveRequests = () => {
                 className="form-select"
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                disabled={loading}
               >
                 <option value="">-- All Accessible Branches --</option>
                 {branches.map(b => (
@@ -134,6 +151,7 @@ const LeaveRequests = () => {
               className="form-select"
               value={selectedStatusFilter}
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              disabled={loading}
             >
               <option value="">-- All Statuses --</option>
               <option value="pending">Pending Review</option>
@@ -147,9 +165,26 @@ const LeaveRequests = () => {
       {/* Leave Applications Table */}
       <div className="card">
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-            <div style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>🔄 Loading Leave Applications...</div>
-          </div>
+          <SkeletonLoader type="table" rows={5} columns={8} />
+        ) : requests.length === 0 ? (
+          selectedBranchFilter || selectedStatusFilter ? (
+            <EmptyState
+              type="no-results"
+              title="No Matching Leave Applications"
+              message="No leave requests match the selected branch location or status filter."
+              actionText="Clear Filters"
+              onAction={() => {
+                setSelectedBranchFilter('');
+                setSelectedStatusFilter('');
+              }}
+            />
+          ) : (
+            <EmptyState
+              type="no-data"
+              title="No Leave Applications Submitted"
+              message="There are currently no student leave applications recorded in the system."
+            />
+          )
         ) : (
           <div className="table-responsive">
             <table className="plain-table">
@@ -166,48 +201,52 @@ const LeaveRequests = () => {
                 </tr>
               </thead>
               <tbody>
-                {requests.length === 0 ? (
-                  <tr>
-                    <td colSpan={canReview ? "8" : "7"} style={{ textAlign: 'center', padding: '2rem' }}>
-                      No leave applications found
-                    </td>
-                  </tr>
-                ) : (
-                  requests.map(lr => {
-                    const stClass = lr.status === 'approved' ? 'status-good' : lr.status === 'rejected' ? 'status-critical' : 'status-warning';
-                    return (
-                      <tr key={`lr-${lr.id}`}>
-                        <td><strong>{lr.student_name}</strong></td>
-                        <td>{lr.branch_name}</td>
-                        <td>{new Date(lr.date_from).toLocaleDateString()} - {new Date(lr.date_to).toLocaleDateString()}</td>
-                        <td>{lr.reason}</td>
+                {requests.map(lr => {
+                  const stClass = lr.status === 'approved' ? 'status-good' : lr.status === 'rejected' ? 'status-critical' : 'status-warning';
+                  const isReviewing = reviewingId === lr.id;
+                  return (
+                    <tr key={`lr-${lr.id}`}>
+                      <td><strong>{lr.student_name}</strong></td>
+                      <td>{lr.branch_name}</td>
+                      <td>{new Date(lr.date_from).toLocaleDateString()} - {new Date(lr.date_to).toLocaleDateString()}</td>
+                      <td>{lr.reason}</td>
+                      <td>
+                        <span className={`badge-outline ${stClass}`}>
+                          {lr.status}
+                        </span>
+                      </td>
+                      <td>{new Date(lr.requested_at).toLocaleDateString()}</td>
+                      <td>{lr.reviewed_by_name || '-'}</td>
+                      {canReview && (
                         <td>
-                          <span className={`badge-outline ${stClass}`}>
-                            {lr.status}
-                          </span>
+                          {lr.status === 'pending' ? (
+                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                              <LoadingButton
+                                variant="sm"
+                                loading={isReviewing}
+                                loadingText="... ⟳"
+                                onClick={() => handleApprove(lr.id)}
+                              >
+                                Approve
+                              </LoadingButton>
+                              <LoadingButton
+                                variant="danger"
+                                className="btn-sm"
+                                loading={isReviewing}
+                                loadingText="... ⟳"
+                                onClick={() => handleReject(lr.id)}
+                              >
+                                Reject
+                              </LoadingButton>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Reviewed</span>
+                          )}
                         </td>
-                        <td>{new Date(lr.requested_at).toLocaleDateString()}</td>
-                        <td>{lr.reviewed_by_name || '-'}</td>
-                        {canReview && (
-                          <td>
-                            {lr.status === 'pending' ? (
-                              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                <button onClick={() => handleApprove(lr.id)} className="btn btn-sm status-good">
-                                  Approve
-                                </button>
-                                <button onClick={() => handleReject(lr.id)} className="btn btn-sm status-critical">
-                                  Reject
-                                </button>
-                              </div>
-                            ) : (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Reviewed</span>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

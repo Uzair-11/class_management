@@ -1,6 +1,9 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState from '../components/common/ErrorState';
 
 const AttendanceReport = () => {
   const { token, user } = useAuth();
@@ -18,7 +21,7 @@ const AttendanceReport = () => {
   const [sortField, setSortField] = useState('attendance_percentage');
   const [sortOrder, setSortOrder] = useState('desc');
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -29,9 +32,9 @@ const AttendanceReport = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -49,19 +52,19 @@ const AttendanceReport = () => {
         setError(data.message || 'Failed to load attendance report');
       }
     } catch (err) {
-      setError('Error fetching report data');
+      setError(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [fromDate, toDate, selectedBranchId, token]);
 
   useEffect(() => {
     fetchBranches();
-  }, [token]);
+  }, [fetchBranches]);
 
   useEffect(() => {
     fetchReport();
-  }, [token, selectedBranchId, fromDate, toDate]);
+  }, [fetchReport]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -99,6 +102,14 @@ const AttendanceReport = () => {
         </div>
       </div>
 
+      {error && !loading && (
+        <ErrorState
+          error={error}
+          title="Attendance Report Unavailable"
+          onRetry={fetchReport}
+        />
+      )}
+
       {/* Date Range & Branch Filters */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -109,6 +120,7 @@ const AttendanceReport = () => {
               className="form-input"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
+              disabled={loading}
             />
           </div>
 
@@ -119,6 +131,7 @@ const AttendanceReport = () => {
               className="form-input"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
+              disabled={loading}
             />
           </div>
 
@@ -129,6 +142,7 @@ const AttendanceReport = () => {
                 className="form-select"
                 value={selectedBranchId}
                 onChange={(e) => setSelectedBranchId(e.target.value)}
+                disabled={loading}
               >
                 <option value="">-- All Accessible Branches --</option>
                 {branches.map(b => (
@@ -140,14 +154,16 @@ const AttendanceReport = () => {
         </div>
       </div>
 
-      {error && <div className="error-box">{error}</div>}
-
-      {/* Report Table */}
+      {/* Report Table / Skeleton / Empty State */}
       <div className="card">
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-            <div style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>🔄 Generating Attendance Report...</div>
-          </div>
+          <SkeletonLoader type="table" rows={6} columns={7} />
+        ) : sortedStudents.length === 0 ? (
+          <EmptyState
+            type="no-data"
+            title="No Attendance Data Found"
+            message="No attendance sessions were recorded for the selected date range and branch filter."
+          />
         ) : (
           <div className="table-responsive">
             <table className="plain-table">
@@ -175,32 +191,24 @@ const AttendanceReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {sortedStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                      No attendance records found for the selected date range and branch filter.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedStudents.map(st => {
-                    const score = st.attendance_percentage !== null ? parseFloat(st.attendance_percentage) : 0;
-                    return (
-                      <tr key={`arst-${st.student_id}`}>
-                        <td><strong>{st.student_name}</strong></td>
-                        <td>{st.branch_name}</td>
-                        <td>{st.course_name}</td>
-                        <td><strong style={{ color: 'var(--color-success)' }}>{st.present_days}</strong></td>
-                        <td><strong style={{ color: 'var(--color-danger)' }}>{st.absent_days}</strong></td>
-                        <td>{st.total_days}</td>
-                        <td>
-                          <span className={`badge-outline ${score >= 75 ? 'badge-success' : 'badge-warning'}`}>
-                            {st.attendance_percentage !== null ? `${st.attendance_percentage}%` : 'N/A'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                {sortedStudents.map(st => {
+                  const score = st.attendance_percentage !== null ? parseFloat(st.attendance_percentage) : 0;
+                  return (
+                    <tr key={`arst-${st.student_id}`}>
+                      <td><strong>{st.student_name}</strong></td>
+                      <td>{st.branch_name}</td>
+                      <td>{st.course_name}</td>
+                      <td><strong style={{ color: 'var(--color-success)' }}>{st.present_days}</strong></td>
+                      <td><strong style={{ color: 'var(--color-danger)' }}>{st.absent_days}</strong></td>
+                      <td>{st.total_days}</td>
+                      <td>
+                        <span className={`badge-outline ${score >= 75 ? 'badge-success' : 'badge-warning'}`}>
+                          {st.attendance_percentage !== null ? `${st.attendance_percentage}%` : 'N/A'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

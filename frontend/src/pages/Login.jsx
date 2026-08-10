@@ -1,24 +1,35 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import LoadingButton from '../components/common/LoadingButton';
+import { InlineError } from '../components/common/ErrorState';
 import logoImg from '../../../logo_reverse.png';
 
 const Login = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
   const { login } = useAuth();
+  const { showSuccess } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
+
     try {
-      await login(phone, password);
+      const loggedUser = await login(phone, password);
+      showSuccess(`Welcome back, ${loggedUser?.name || 'User'}!`);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Unable to sign in. Please verify your phone number and password.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -35,7 +46,7 @@ const Login = () => {
           </p>
         </div>
 
-        {error && <div className="error-box">{error}</div>}
+        {error && <InlineError message={error} onDismiss={() => setError('')} />}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -48,6 +59,7 @@ const Login = () => {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="e.g. 9000000001"
               required
+              disabled={loading}
             />
           </div>
 
@@ -72,6 +84,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                disabled={loading}
               />
               <button
                 type="button"
@@ -89,15 +102,22 @@ const Login = () => {
                   padding: '0.2rem'
                 }}
                 title={showPassword ? 'Hide password' : 'Show password'}
+                disabled={loading}
               >
                 {showPassword ? '👁️' : '👁️‍🗨️'}
               </button>
             </div>
           </div>
 
-          <button type="submit" className="btn btn-black" style={{ width: '100%', marginTop: '0.5rem', justifyContent: 'center' }}>
+          <LoadingButton
+            type="submit"
+            variant="black"
+            loading={loading}
+            loadingText="Signing In to Portal... ⟳"
+            style={{ width: '100%', marginTop: '0.5rem', justifyContent: 'center' }}
+          >
             Sign In to Portal
-          </button>
+          </LoadingButton>
         </form>
 
         <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)', fontSize: '0.78rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>

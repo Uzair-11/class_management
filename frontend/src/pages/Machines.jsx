@@ -1,25 +1,34 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const Machines = () => {
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
 
   const [machines, setMachines] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState('');
 
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [machineNumber, setMachineNumber] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
   const [status, setStatus] = useState('working');
   const [targetBranchId, setTargetBranchId] = useState('');
 
-  const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
-  const fetchMachines = async () => {
+  const fetchMachines = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       let url = buildApiUrl('/api/machines');
       if (selectedBranchFilter) {
@@ -33,15 +42,18 @@ const Machines = () => {
       if (contentType && contentType.includes('application/json')) {
         const data = await res.json();
         if (res.ok) setMachines(data);
-        else setError(data.message);
+        else setError(data.message || 'Failed to fetch machines inventory');
+      } else {
+        setError('Unexpected response from server');
       }
     } catch (err) {
-      console.error(err);
-      setError('Error loading machines inventory');
+      setError(err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token, selectedBranchFilter]);
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -54,17 +66,17 @@ const Machines = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchMachines();
     fetchBranches();
-  }, [token, selectedBranchFilter]);
+  }, [fetchMachines, fetchBranches]);
 
   const handleCreateMachine = async (e) => {
     e.preventDefault();
     setError('');
-    setMsg('');
+    setSubmitting(true);
 
     try {
       const res = await fetch(buildApiUrl('/api/machines'), {
@@ -84,14 +96,16 @@ const Machines = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to add machine');
 
-      setMsg('Machine added successfully!');
+      showSuccess(`✓ Machine "${machineNumber}" added to inventory successfully!`);
       setShowAddModal(false);
       setMachineNumber('');
       setPurchaseDate('');
       setStatus('working');
       fetchMachines();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to add machine');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -116,7 +130,7 @@ const Machines = () => {
       <div className="header-row">
         <div>
           <h2>Sewing Machine Inventory</h2>
-          <p style={{ fontSize: '0.85rem', color: '#666' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
             Equipment tracking, maintenance logs, and operational statuses
           </p>
         </div>
@@ -128,13 +142,20 @@ const Machines = () => {
         )}
       </div>
 
-      {msg && <div style={{ border: '1px solid #000', padding: '0.5rem', marginBottom: '1rem', background: '#f0f0f0' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && !loading && (
+        <ErrorState
+          error={error}
+          title="Machine Inventory Unavailable"
+          onRetry={fetchMachines}
+        />
+      )}
 
       {/* Add Machine Card */}
       {showAddModal && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div className="card" style={{ marginBottom: '1.5rem', borderTop: '4px solid var(--color-primary)' }}>
           <h3>Add New Machine</h3>
+          {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
           <form onSubmit={handleCreateMachine} style={{ marginTop: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
@@ -146,6 +167,7 @@ const Machines = () => {
                   onChange={(e) => setMachineNumber(e.target.value)}
                   placeholder="e.g. MCH-001"
                   required
+                  disabled={submitting}
                 />
               </div>
 
@@ -157,6 +179,7 @@ const Machines = () => {
                     value={targetBranchId}
                     onChange={(e) => setTargetBranchId(e.target.value)}
                     required
+                    disabled={submitting}
                   >
                     {branches.map(b => (
                       <option key={`mb-${b.id}`} value={b.id}>{b.name}</option>
@@ -172,6 +195,7 @@ const Machines = () => {
                   className="form-input"
                   value={purchaseDate}
                   onChange={(e) => setPurchaseDate(e.target.value)}
+                  disabled={submitting}
                 />
               </div>
 
@@ -181,6 +205,7 @@ const Machines = () => {
                   className="form-select"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
+                  disabled={submitting}
                 >
                   <option value="working">Working</option>
                   <option value="needs_maintenance">Needs Maintenance</option>
@@ -191,9 +216,15 @@ const Machines = () => {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem' }}>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={submitting}
+              loadingText="Saving Machine to Inventory... ⟳"
+              style={{ marginTop: '0.5rem' }}
+            >
               Save Machine to Inventory
-            </button>
+            </LoadingButton>
           </form>
         </div>
       )}
@@ -207,6 +238,7 @@ const Machines = () => {
             style={{ width: 'auto', minWidth: '200px' }}
             value={selectedBranchFilter}
             onChange={(e) => setSelectedBranchFilter(e.target.value)}
+            disabled={loading}
           >
             <option value="">-- All Accessible Branches --</option>
             {branches.map(b => (
@@ -216,26 +248,42 @@ const Machines = () => {
         </div>
       )}
 
-      {/* Machines Table */}
-      <div className="table-responsive">
-        <table className="plain-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Machine Number</th>
-              <th>Branch</th>
-              <th>Purchase Date</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {machines.length === 0 ? (
+      {/* Machines Table / Skeleton / Empty State */}
+      {loading ? (
+        <SkeletonLoader type="table" rows={5} columns={6} />
+      ) : machines.length === 0 ? (
+        selectedBranchFilter ? (
+          <EmptyState
+            type="no-results"
+            title="No Machines Found for Branch"
+            message="No equipment records match the selected branch filter."
+            actionText="Clear Branch Filter"
+            onAction={() => setSelectedBranchFilter('')}
+          />
+        ) : (
+          <EmptyState
+            type="no-data"
+            title="No Machines in Inventory"
+            message="No equipment or sewing machines have been added to the system inventory yet."
+            actionText="+ Add First Machine"
+            onAction={() => setShowAddModal(true)}
+          />
+        )
+      ) : (
+        <div className="table-responsive">
+          <table className="plain-table">
+            <thead>
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center' }}>No machines found</td>
+                <th>ID</th>
+                <th>Machine Number</th>
+                <th>Branch</th>
+                <th>Purchase Date</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
-            ) : (
-              machines.map(m => (
+            </thead>
+            <tbody>
+              {machines.map(m => (
                 <tr key={`mch-${m.id}`}>
                   <td>{m.id}</td>
                   <td><strong>{m.machine_number}</strong></td>
@@ -248,11 +296,11 @@ const Machines = () => {
                     </Link>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

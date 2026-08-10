@@ -573,3 +573,111 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Skeleton Loading Pulse Animation */
+.skeleton-bar {
+  background: linear-gradient(90deg, var(--color-border) 25%, var(--color-primary-light) 50%, var(--color-border) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.6s infinite ease-in-out;
+  border-radius: 4px;
+  display: block;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Inline Spinner Animation */
+.btn-spinner {
+  display: inline-block;
+  animation: spin 0.9s linear infinite;
+  font-weight: bold;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Global Toast Notifications Container */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-width: 420px;
+  width: calc(100% - 3rem);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: var(--color-text);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15), var(--shadow-inner);
+  border: 1px solid var(--color-border);
+  font-size: 0.88rem;
+  font-weight: 500;
+  animation: toast-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toast-slide-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.toast-icon {
+  font-size: 1.1rem;
+}
+
+.toast-success {
+  border-left: 5px solid var(--color-success);
+  background: linear-gradient(180deg, #FFFFFF 0%, #F4FAF6 100%);
+}
+
+.toast-error {
+  border-left: 5px solid var(--color-danger);
+  background: linear-gradient(180deg, #FFFFFF 0%, #FCF5F4 100%);
+}
+
+.toast-warning {
+  border-left: 5px solid var(--color-warning);
+  background: linear-gradient(180deg, #FFFFFF 0%, #FCF9F3 100%);
+}
+
+.toast-info {
+  border-left: 5px solid var(--color-primary);
+  background: linear-gradient(180deg, #FFFFFF 0%, #F2F8F5 100%);
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0 0.25rem;
+  margin-left: 0.75rem;
+  opacity: 0.65;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+

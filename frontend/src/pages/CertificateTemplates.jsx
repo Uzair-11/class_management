@@ -1,20 +1,29 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const CertificateTemplates = () => {
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
 
   const [templates, setTemplates] = useState([]);
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [savingFields, setSavingFields] = useState(false);
+  const [activatingId, setActivatingId] = useState(null);
+
   // Upload Form State
   const [templateName, setTemplateName] = useState('');
   const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const [msg, setMsg] = useState('');
 
   // Field Placement State (% based)
   const [fields, setFields] = useState([
@@ -28,31 +37,6 @@ const CertificateTemplates = () => {
 
   const [activeFieldKey, setActiveFieldKey] = useState('student_name');
   const previewRef = useRef(null);
-
-  const fetchTemplates = async () => {
-    try {
-      const res = await fetch(buildApiUrl('/api/certificate-templates'), {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setTemplates(data);
-        const active = data.find(t => t.is_active);
-        if (active) {
-          setActiveTemplate(active);
-          if (!selectedTemplate) {
-            setSelectedTemplate(active);
-            if (active.fields && active.fields.length > 0) mergeFields(active.fields);
-          }
-        } else if (data.length > 0 && !selectedTemplate) {
-          setSelectedTemplate(data[0]);
-          if (data[0].fields && data[0].fields.length > 0) mergeFields(data[0].fields);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const mergeFields = (savedFields) => {
     setFields(prev => prev.map(f => {
@@ -72,9 +56,40 @@ const CertificateTemplates = () => {
     }));
   };
 
+  const fetchTemplates = useCallback(async () => {
+    setLoadingTemplates(true);
+    setError('');
+    try {
+      const res = await fetch(buildApiUrl('/api/certificate-templates'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTemplates(data);
+        const active = data.find(t => t.is_active);
+        if (active) {
+          setActiveTemplate(active);
+          if (!selectedTemplate) {
+            setSelectedTemplate(active);
+            if (active.fields && active.fields.length > 0) mergeFields(active.fields);
+          }
+        } else if (data.length > 0 && !selectedTemplate) {
+          setSelectedTemplate(data[0]);
+          if (data[0].fields && data[0].fields.length > 0) mergeFields(data[0].fields);
+        }
+      } else {
+        setError(data.message || 'Failed to fetch templates');
+      }
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  }, [token, selectedTemplate]);
+
   useEffect(() => {
     fetchTemplates();
-  }, [token]);
+  }, [fetchTemplates]);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -85,7 +100,6 @@ const CertificateTemplates = () => {
 
     setUploading(true);
     setError('');
-    setMsg('');
 
     const formData = new FormData();
     formData.append('template_file', file);
@@ -101,12 +115,12 @@ const CertificateTemplates = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Upload failed');
 
-      setMsg('Template uploaded successfully!');
+      showSuccess('✓ Certificate template background uploaded successfully!');
       setTemplateName('');
       setFile(null);
       fetchTemplates();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -114,7 +128,7 @@ const CertificateTemplates = () => {
 
   const handleActivate = async (id) => {
     setError('');
-    setMsg('');
+    setActivatingId(id);
     try {
       const res = await fetch(buildApiUrl(`/api/certificate-templates/${id}/activate`), {
         method: 'PUT',
@@ -123,17 +137,19 @@ const CertificateTemplates = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Activation failed');
 
-      setMsg('Certificate template activated successfully!');
+      showSuccess('✓ Certificate template activated successfully!');
       fetchTemplates();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Activation failed');
+    } finally {
+      setActivatingId(null);
     }
   };
 
   const handleSaveFields = async () => {
     if (!selectedTemplate) return;
     setError('');
-    setMsg('');
+    setSavingFields(true);
 
     try {
       const res = await fetch(buildApiUrl(`/api/certificate-templates/${selectedTemplate.id}/fields`), {
@@ -148,10 +164,12 @@ const CertificateTemplates = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to save field positions');
 
-      setMsg('Field positions and styling saved successfully!');
+      showSuccess('✓ Field positions and styling saved successfully!');
       fetchTemplates();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to save field positions');
+    } finally {
+      setSavingFields(false);
     }
   };
 
@@ -192,13 +210,20 @@ const CertificateTemplates = () => {
         </div>
       </div>
 
-      {msg && <div style={{ border: '1px solid var(--color-primary)', padding: '0.5rem', marginBottom: '1rem', background: 'var(--color-primary-light)' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && !loadingTemplates && (
+        <ErrorState
+          error={error}
+          title="Templates Unavailable"
+          onRetry={fetchTemplates}
+        />
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
         {/* Upload Card */}
         <div className="card">
           <h3>Upload New Template File</h3>
+          {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
           <form onSubmit={handleUpload} style={{ marginTop: '1rem' }}>
             <div className="form-group">
               <label>Template Name</label>
@@ -208,6 +233,7 @@ const CertificateTemplates = () => {
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
                 placeholder="e.g. 2026 Official Crest Certificate"
+                disabled={uploading}
               />
             </div>
 
@@ -219,35 +245,45 @@ const CertificateTemplates = () => {
                 accept="image/*,application/pdf"
                 onChange={(e) => setFile(e.target.files[0])}
                 required
+                disabled={uploading}
               />
             </div>
 
-            <button type="submit" className="btn btn-black" disabled={uploading}>
-              {uploading ? 'Uploading...' : '📤 Upload Template'}
-            </button>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={uploading}
+              loadingText="Uploading Template... ⟳"
+            >
+              📤 Upload Template
+            </LoadingButton>
           </form>
         </div>
 
-        {/* Template List Card */}
+        {/* Template List Card / Skeleton / Empty */}
         <div className="card">
           <h3>Uploaded Certificate Templates</h3>
-          <div className="table-responsive" style={{ marginTop: '1rem', maxHeight: '220px', overflowY: 'auto' }}>
-            <table className="plain-table">
-              <thead>
-                <tr>
-                  <th>Template Name</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {templates.length === 0 ? (
+          {loadingTemplates ? (
+            <SkeletonLoader type="table" rows={3} columns={4} />
+          ) : templates.length === 0 ? (
+            <EmptyState
+              type="no-data"
+              title="No Templates Uploaded"
+              message="No certificate background designs have been uploaded yet."
+            />
+          ) : (
+            <div className="table-responsive" style={{ marginTop: '1rem', maxHeight: '220px', overflowY: 'auto' }}>
+              <table className="plain-table">
+                <thead>
                   <tr>
-                    <td colSpan="4" style={{ textAlign: 'center' }}>No templates uploaded yet</td>
+                    <th>Template Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
-                ) : (
-                  templates.map(t => (
+                </thead>
+                <tbody>
+                  {templates.map(t => (
                     <tr key={`tmpl-${t.id}`} style={{ backgroundColor: selectedTemplate?.id === t.id ? 'var(--color-primary-light)' : 'transparent' }}>
                       <td><strong>{t.name}</strong></td>
                       <td><span className="badge-outline" style={{ textTransform: 'uppercase' }}>{t.file_type}</span></td>
@@ -268,18 +304,24 @@ const CertificateTemplates = () => {
                             Edit
                           </button>
                           {!t.is_active && (
-                            <button onClick={() => handleActivate(t.id)} className="btn btn-sm btn-black">
+                            <LoadingButton
+                              variant="black"
+                              className="btn-sm"
+                              loading={activatingId === t.id}
+                              loadingText="... ⟳"
+                              onClick={() => handleActivate(t.id)}
+                            >
                               Activate
-                            </button>
+                            </LoadingButton>
                           )}
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -293,9 +335,14 @@ const CertificateTemplates = () => {
                 Drag text labels directly over the background design to position student fields accurately (% based)
               </p>
             </div>
-            <button onClick={handleSaveFields} className="btn btn-black">
+            <LoadingButton
+              variant="black"
+              loading={savingFields}
+              loadingText="Saving Positions... ⟳"
+              onClick={handleSaveFields}
+            >
               💾 Save Field Positions & Styles
-            </button>
+            </LoadingButton>
           </div>
 
           {/* Style Controls Bar per Field */}

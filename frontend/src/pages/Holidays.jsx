@@ -1,9 +1,16 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const Holidays = () => {
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
 
   const [holidays, setHolidays] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -16,12 +23,20 @@ const Holidays = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
-  const [targetBranchId, setTargetBranchId] = useState(''); // '' means All Branches for admin
+  const [targetBranchId, setTargetBranchId] = useState('');
 
-  const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchHolidays = async () => {
+  // Delete Confirm Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteHolidayId, setDeleteHolidayId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchHolidays = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       let url = buildApiUrl('/api/holidays');
       if (selectedBranchFilter) {
@@ -36,15 +51,18 @@ const Holidays = () => {
       if (contentType && contentType.includes('application/json')) {
         const data = await res.json();
         if (res.ok) setHolidays(data);
-        else setError(data.message);
+        else setError(data.message || 'Failed to fetch holidays list');
+      } else {
+        setError('Unexpected server response');
       }
     } catch (err) {
-      console.error(err);
-      setError('Error fetching holidays list');
+      setError(err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token, selectedBranchFilter]);
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -56,17 +74,17 @@ const Holidays = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchHolidays();
     fetchBranches();
-  }, [token, selectedBranchFilter]);
+  }, [fetchHolidays, fetchBranches]);
 
   const handleCreateHoliday = async (e) => {
     e.preventDefault();
     setError('');
-    setMsg('');
+    setSubmitting(true);
 
     try {
       const res = await fetch(buildApiUrl('/api/holidays'), {
@@ -85,22 +103,31 @@ const Holidays = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to declare holiday');
 
-      setMsg('Holiday declared successfully');
+      showSuccess('✓ Holiday declared successfully!');
       setShowAddModal(false);
       setDate('');
       setReason('');
       setTargetBranchId('');
       fetchHolidays();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to declare holiday');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteHoliday = async (holidayId) => {
-    if (!window.confirm('Are you sure you want to delete this holiday record?')) return;
+  const confirmDeleteHoliday = (id) => {
+    setDeleteHolidayId(id);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteHoliday = async () => {
+    if (!deleteHolidayId) return;
+    setError('');
+    setDeleting(true);
 
     try {
-      const res = await fetch(buildApiUrl(`/api/holidays/${holidayId}`), {
+      const res = await fetch(buildApiUrl(`/api/holidays/${deleteHolidayId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -108,10 +135,14 @@ const Holidays = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to delete holiday');
 
-      setMsg('Holiday deleted successfully');
+      showSuccess('✓ Holiday record removed successfully');
+      setDeleteModalOpen(false);
+      setDeleteHolidayId(null);
       fetchHolidays();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to delete holiday');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -132,7 +163,7 @@ const Holidays = () => {
       <div className="header-row">
         <div>
           <h2>Holiday Management</h2>
-          <p style={{ fontSize: '0.85rem', color: '#666' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
             Declare global or branch-specific holidays and scheduled closures
           </p>
         </div>
@@ -144,13 +175,36 @@ const Holidays = () => {
         )}
       </div>
 
-      {msg && <div style={{ border: '1px solid #000', padding: '0.5rem', marginBottom: '1rem', background: '#f0f0f0' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && !loading && (
+        <ErrorState
+          error={error}
+          title="Holidays Couldn't Be Loaded"
+          onRetry={fetchHolidays}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Remove Holiday Declaration"
+        message="Are you sure you want to remove this holiday entry? Classes will be re-enabled for attendance marking on this date."
+        warningText="This action will delete the scheduled closure."
+        confirmText="Remove Holiday"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={handleDeleteHoliday}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setDeleteHolidayId(null);
+        }}
+      />
 
       {/* Add Holiday Card */}
       {showAddModal && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div className="card" style={{ marginBottom: '1.5rem', borderTop: '4px solid var(--color-primary)' }}>
           <h3>Declare New Holiday</h3>
+          {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
           <form onSubmit={handleCreateHoliday} style={{ marginTop: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
@@ -161,6 +215,7 @@ const Holidays = () => {
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   required
+                  disabled={submitting}
                 />
               </div>
 
@@ -170,6 +225,7 @@ const Holidays = () => {
                   className="form-select"
                   value={targetBranchId}
                   onChange={(e) => setTargetBranchId(e.target.value)}
+                  disabled={submitting}
                 >
                   {user?.role === 'admin' && (
                     <option value="">🌐 All Branches (Global Holiday)</option>
@@ -190,12 +246,19 @@ const Holidays = () => {
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g. Eid-ul-Fitr / Maintenance Work"
                 required
+                disabled={submitting}
               />
             </div>
 
-            <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem' }}>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={submitting}
+              loadingText="Declaring Holiday... ⟳"
+              style={{ marginTop: '0.5rem' }}
+            >
               Declare Holiday
-            </button>
+            </LoadingButton>
           </form>
         </div>
       )}
@@ -210,6 +273,7 @@ const Holidays = () => {
               style={{ width: 'auto' }}
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
+              disabled={loading}
             >
               <option value="upcoming">Upcoming Holidays</option>
               <option value="past">Past Holidays</option>
@@ -224,6 +288,7 @@ const Holidays = () => {
               style={{ width: 'auto' }}
               value={selectedBranchFilter}
               onChange={(e) => setSelectedBranchFilter(e.target.value)}
+              disabled={loading}
             >
               <option value="">-- All Branches & Global --</option>
               {branches.map(b => (
@@ -234,50 +299,59 @@ const Holidays = () => {
         </div>
       </div>
 
-      {/* Holidays List Table */}
-      <div className="table-responsive">
-        <table className="plain-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Reason</th>
-              <th>Branch / Scope</th>
-              {(user?.role === 'admin' || user?.role === 'supervisor') && <th>Action</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredHolidays.length === 0 ? (
-              <tr>
-                <td colSpan={(user?.role === 'admin' || user?.role === 'supervisor') ? "4" : "3"} style={{ textAlign: 'center' }}>
-                  No holiday records found for the selected criteria
-                </td>
-              </tr>
-            ) : (
-              filteredHolidays.map(h => (
-                <tr key={`hol-${h.id}`}>
-                  <td><strong>{new Date(h.date).toLocaleDateString()}</strong></td>
-                  <td>{h.reason}</td>
-                  <td>
-                    {h.branch_id === null ? (
-                      <span className="badge-outline" style={{ background: '#f0f0f0', fontWeight: 'bold' }}>
-                        All Branches (Global)
-                      </span>
-                    ) : (
-                      <span>{h.branch_name || `Branch #${h.branch_id}`}</span>
-                    )}
-                  </td>
-                  {(user?.role === 'admin' || user?.role === 'supervisor') && (
-                    <td>
-                      <button onClick={() => handleDeleteHoliday(h.id)} className="btn btn-sm">
-                        Remove
-                      </button>
-                    </td>
-                  )}
+      {/* Holidays List Table / Skeleton / Empty State */}
+      <div className="card">
+        {loading ? (
+          <SkeletonLoader type="table" rows={4} columns={4} />
+        ) : filteredHolidays.length === 0 ? (
+          <EmptyState
+            type={selectedBranchFilter || timeFilter !== 'all' ? 'no-results' : 'no-data'}
+            title="No Holidays Found"
+            message={selectedBranchFilter || timeFilter !== 'all' ? "No holiday records match your current filter selection." : "No holidays or closures have been declared yet."}
+            actionText="Reset Filters"
+            onAction={() => {
+              setSelectedBranchFilter('');
+              setTimeFilter('all');
+            }}
+          />
+        ) : (
+          <div className="table-responsive">
+            <table className="plain-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Reason</th>
+                  <th>Branch / Scope</th>
+                  {(user?.role === 'admin' || user?.role === 'supervisor') && <th>Action</th>}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {filteredHolidays.map(h => (
+                  <tr key={`hol-${h.id}`}>
+                    <td><strong>{new Date(h.date).toLocaleDateString()}</strong></td>
+                    <td>{h.reason}</td>
+                    <td>
+                      {h.branch_id === null ? (
+                        <span className="badge-outline" style={{ background: 'var(--color-primary-light)', fontWeight: 'bold' }}>
+                          All Branches (Global)
+                        </span>
+                      ) : (
+                        <span>{h.branch_name || `Branch #${h.branch_id}`}</span>
+                      )}
+                    </td>
+                    {(user?.role === 'admin' || user?.role === 'supervisor') && (
+                      <td>
+                        <button onClick={() => confirmDeleteHoliday(h.id)} className="btn btn-sm btn-danger">
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,9 +1,15 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const Attendance = () => {
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [branches, setBranches] = useState([]);
@@ -16,12 +22,16 @@ const Attendance = () => {
   const [holidayReason, setHolidayReason] = useState('');
   const [isLocked, setIsLocked] = useState(false);
 
-  const [msg, setMsg] = useState('');
+  const [loadingSheet, setLoadingSheet] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [locking, setLocking] = useState(false);
   const [error, setError] = useState('');
   const [summary, setSummary] = useState(null);
 
+  const [lockConfirmOpen, setLockConfirmOpen] = useState(false);
+
   // Fetch branches available to user
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -40,13 +50,13 @@ const Attendance = () => {
     } catch (err) {
       setSelectedBranchId('1');
     }
-  };
+  }, [token]);
 
   // Fetch daily attendance sheet for selected branch + date
-  const fetchAttendanceSheet = async () => {
+  const fetchAttendanceSheet = useCallback(async () => {
     if (!selectedBranchId || !date) return;
+    setLoadingSheet(true);
     setError('');
-    setMsg('');
     setSummary(null);
 
     try {
@@ -76,24 +86,27 @@ const Attendance = () => {
             setRecords(initialRecs);
           }
         } else {
-          setError(data.message);
+          setError(data.message || 'Failed to load attendance sheet');
         }
+      } else {
+        setError('Unexpected server response');
       }
     } catch (err) {
-      console.error(err);
-      setError('Error loading attendance sheet');
+      setError('Error loading attendance sheet. Please try again.');
+    } finally {
+      setLoadingSheet(false);
     }
-  };
+  }, [selectedBranchId, date, token]);
 
   useEffect(() => {
     fetchBranches();
-  }, [token]);
+  }, [fetchBranches]);
 
   useEffect(() => {
     if (selectedBranchId) {
       fetchAttendanceSheet();
     }
-  }, [selectedBranchId, date, token]);
+  }, [selectedBranchId, date, fetchAttendanceSheet]);
 
   const handleToggleStatus = (studentId, statusValue) => {
     if (isLocked && user?.role !== 'admin') return;
@@ -106,7 +119,6 @@ const Attendance = () => {
   const handleSaveAttendance = async (e, lockImmediately = false) => {
     if (e) e.preventDefault();
     setError('');
-    setMsg('');
     setSummary(null);
 
     const payloadRecords = Object.keys(records)
@@ -120,6 +132,9 @@ const Attendance = () => {
       setError('Please mark at least one student as Present or Absent before saving');
       return;
     }
+
+    if (lockImmediately) setLocking(true);
+    else setSaving(true);
 
     try {
       const res = await fetch(buildApiUrl('/api/attendance'), {
@@ -139,19 +154,21 @@ const Attendance = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to save attendance');
 
-      setMsg(data.message);
+      showSuccess(`✓ ${data.message || 'Attendance sheet saved successfully!'}`);
       setSummary(data.summary);
       setIsLocked(data.is_locked);
+      setLockConfirmOpen(false);
       fetchAttendanceSheet();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to save attendance');
+    } finally {
+      setSaving(false);
+      setLocking(false);
     }
   };
 
   const handleToggleLock = async (newLockState) => {
     setError('');
-    setMsg('');
-
     try {
       const res = await fetch(buildApiUrl('/api/attendance/lock'), {
         method: 'POST',
@@ -169,20 +186,11 @@ const Attendance = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to update lock status');
 
-      setMsg(data.message);
+      showSuccess(`✓ ${data.message || 'Sheet lock status updated'}`);
       setIsLocked(newLockState);
       fetchAttendanceSheet();
     } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleLockClick = (e) => {
-    e.preventDefault();
-    const branchName = branches.find(b => b.id.toString() === selectedBranchId.toString())?.name || 'this branch';
-    const confirmMessage = `This will lock attendance for ${branchName} on ${date} and prevent further edits. Continue?`;
-    if (window.confirm(confirmMessage)) {
-      handleSaveAttendance(e, true);
+      setError(err.message || 'Failed to update lock status');
     }
   };
 
@@ -199,8 +207,20 @@ const Attendance = () => {
         </div>
       </div>
 
-      {msg && <div style={{ border: '1px solid var(--color-primary)', padding: '0.5rem', marginBottom: '1rem', background: 'var(--color-primary-light)' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
+      {/* Lock Confirmation Modal */}
+      <ConfirmModal
+        isOpen={lockConfirmOpen}
+        title="Lock & Finalize Attendance"
+        message={`Are you sure you want to lock the attendance sheet for ${date}? Once locked, modifying attendance records will be restricted.`}
+        warningText="Finalizing will freeze this date's records."
+        confirmText="Save & Lock Sheet"
+        confirmVariant="primary"
+        loading={locking}
+        onConfirm={() => handleSaveAttendance(null, true)}
+        onCancel={() => setLockConfirmOpen(false)}
+      />
 
       {/* Date & Branch Controls */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -212,6 +232,7 @@ const Attendance = () => {
               className="form-input"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              disabled={loadingSheet || saving || locking}
             />
           </div>
 
@@ -222,6 +243,7 @@ const Attendance = () => {
                 className="form-select"
                 value={selectedBranchId}
                 onChange={(e) => setSelectedBranchId(e.target.value)}
+                disabled={loadingSheet || saving || locking}
               >
                 {branches.length > 0 ? (
                   branches.map(b => (
@@ -264,6 +286,8 @@ const Attendance = () => {
             Class sheet and attendance submission controls are disabled on holidays.
           </p>
         </div>
+      ) : loadingSheet ? (
+        <SkeletonLoader type="table" rows={6} columns={4} />
       ) : (
         <div>
           {/* Summary Banner after saving */}
@@ -316,6 +340,7 @@ const Attendance = () => {
                                       className="btn btn-sm"
                                       style={{ minWidth: '85px', borderColor: 'var(--color-border)' }}
                                       onClick={() => handleToggleStatus(s.student_id, 'present')}
+                                      disabled={saving || locking}
                                     >
                                       ✓ Present
                                     </button>
@@ -324,12 +349,13 @@ const Attendance = () => {
                                       className="btn btn-sm"
                                       style={{ minWidth: '85px', borderColor: 'var(--color-border)' }}
                                       onClick={() => handleToggleStatus(s.student_id, 'absent')}
+                                      disabled={saving || locking}
                                     >
                                       ✗ Absent
                                     </button>
                                   </div>
                                 ) : (
-                                  /* Selected Row State: Locked Filled Badge + Change Button */
+                                  /* Selected Row State */
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                                     <span 
                                       className={`badge-outline ${currentStatus === 'present' ? 'status-good' : 'status-critical'}`} 
@@ -350,6 +376,7 @@ const Attendance = () => {
                                       }}
                                       onClick={() => handleToggleStatus(s.student_id, '')}
                                       title="Change selection for this student"
+                                      disabled={saving || locking}
                                     >
                                       ✏️ Change
                                     </button>
@@ -357,7 +384,6 @@ const Attendance = () => {
                                 )}
                               </div>
                             ) : (
-                              /* Date-Level Locked / Read-Only State (No Buttons, No Change Option) */
                               <span className={`badge-outline ${currentStatus === 'present' ? 'status-good' : currentStatus === 'absent' ? 'status-critical' : ''}`}>
                                 {currentStatus ? currentStatus.toUpperCase() : 'NOT MARKED'}
                               </span>
@@ -373,14 +399,24 @@ const Attendance = () => {
 
             {canEdit && attendanceSheet && attendanceSheet.length > 0 && (
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button type="submit" className="btn btn-black" style={{ flex: 1, justifyContent: 'center' }}>
+                <LoadingButton
+                  type="submit"
+                  variant="black"
+                  loading={saving}
+                  loadingText="Saving Attendance... ⟳"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
                   Save Attendance
-                </button>
+                </LoadingButton>
                 <button 
                   type="button" 
-                  onClick={handleLockClick} 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setLockConfirmOpen(true);
+                  }} 
                   className="btn" 
                   style={{ flex: 1, justifyContent: 'center', border: '1px solid var(--color-primary)', fontWeight: 'bold' }}
+                  disabled={saving || locking}
                 >
                   🔒 Save & Lock Attendance
                 </button>

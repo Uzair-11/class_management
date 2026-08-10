@@ -1,15 +1,24 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const MachineDetail = () => {
   const { id } = useParams();
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
   const navigate = useNavigate();
 
   const [machine, setMachine] = useState(null);
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
+
+  const [loadingMachine, setLoadingMachine] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [submittingMaint, setSubmittingMaint] = useState(false);
 
   // Machine Edit Form State
   const [isEditing, setIsEditing] = useState(false);
@@ -24,10 +33,11 @@ const MachineDetail = () => {
   const [maintRemarks, setMaintRemarks] = useState('');
   const [suggestedStatus, setSuggestedStatus] = useState('');
 
-  const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
-  const fetchMachineDetail = async () => {
+  const fetchMachineDetail = useCallback(async () => {
+    setLoadingMachine(true);
+    setError('');
     try {
       const res = await fetch(buildApiUrl(`/api/machines/${id}`), {
         headers: { Authorization: `Bearer ${token}` }
@@ -39,14 +49,16 @@ const MachineDetail = () => {
         setPurchaseDate(data.purchase_date ? data.purchase_date.split('T')[0] : '');
         setStatus(data.status || 'working');
       } else {
-        setError(data.message);
+        setError(data.message || 'Failed to fetch machine details');
       }
     } catch (err) {
-      setError(err.message);
+      setError(err);
+    } finally {
+      setLoadingMachine(false);
     }
-  };
+  }, [id, token]);
 
-  const fetchMaintenanceLogs = async () => {
+  const fetchMaintenanceLogs = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl(`/api/machines/${id}/maintenance`), {
         headers: { Authorization: `Bearer ${token}` }
@@ -58,17 +70,17 @@ const MachineDetail = () => {
     } catch (err) {
       console.error('Error fetching maintenance history:', err);
     }
-  };
+  }, [id, token]);
 
   useEffect(() => {
     fetchMachineDetail();
     fetchMaintenanceLogs();
-  }, [id, token]);
+  }, [fetchMachineDetail, fetchMaintenanceLogs]);
 
   const handleUpdateMachine = async (e) => {
     e.preventDefault();
     setError('');
-    setMsg('');
+    setUpdating(true);
 
     try {
       const res = await fetch(buildApiUrl(`/api/machines/${id}`), {
@@ -87,18 +99,20 @@ const MachineDetail = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to update machine');
 
-      setMsg('Machine parameters updated successfully');
+      showSuccess('✓ Machine parameters updated successfully');
       setIsEditing(false);
       fetchMachineDetail();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to update machine parameters');
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleAddMaintenance = async (e) => {
     e.preventDefault();
     setError('');
-    setMsg('');
+    setSubmittingMaint(true);
 
     const costVal = parseFloat(maintCost || 0);
 
@@ -121,7 +135,7 @@ const MachineDetail = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to record maintenance');
 
-      setMsg(`✅ ${data.message}`);
+      showSuccess(`✓ Maintenance entry recorded successfully!`);
       setMaintDesc('');
       setMaintCost('0');
       setMaintRemarks('');
@@ -129,11 +143,37 @@ const MachineDetail = () => {
       fetchMachineDetail();
       fetchMaintenanceLogs();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to record maintenance');
+    } finally {
+      setSubmittingMaint(false);
     }
   };
 
-  if (!machine && !error) return <div>Loading machine details...</div>;
+  if (loadingMachine) {
+    return (
+      <div>
+        <div className="header-row">
+          <h2>Machine Details</h2>
+        </div>
+        <SkeletonLoader type="detail" />
+      </div>
+    );
+  }
+
+  if (error && !machine) {
+    return (
+      <div>
+        <div className="header-row">
+          <h2>Machine Details</h2>
+        </div>
+        <ErrorState
+          error={error}
+          title="Machine Details Unavailable"
+          onRetry={fetchMachineDetail}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -144,8 +184,7 @@ const MachineDetail = () => {
         </button>
       </div>
 
-      {msg && <div style={{ border: '1px solid #000', padding: '0.75rem', marginBottom: '1rem', background: '#f0f0f0', fontWeight: '500' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && <InlineError message={error} onDismiss={() => setError('')} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
         {/* Machine Info Card */}
@@ -181,6 +220,7 @@ const MachineDetail = () => {
                   value={machineNumber}
                   onChange={(e) => setMachineNumber(e.target.value)}
                   required
+                  disabled={updating}
                 />
               </div>
 
@@ -191,6 +231,7 @@ const MachineDetail = () => {
                   className="form-input"
                   value={purchaseDate}
                   onChange={(e) => setPurchaseDate(e.target.value)}
+                  disabled={updating}
                 />
               </div>
 
@@ -200,6 +241,7 @@ const MachineDetail = () => {
                   className="form-select"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
+                  disabled={updating}
                 >
                   <option value="working">Working</option>
                   <option value="needs_maintenance">Needs Maintenance</option>
@@ -209,9 +251,15 @@ const MachineDetail = () => {
                 </select>
               </div>
 
-              <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem' }}>
+              <LoadingButton
+                type="submit"
+                variant="black"
+                loading={updating}
+                loadingText="Saving Parameters... ⟳"
+                style={{ marginTop: '0.5rem' }}
+              >
                 Save Parameters
-              </button>
+              </LoadingButton>
             </form>
           )}
         </div>
@@ -222,7 +270,7 @@ const MachineDetail = () => {
           {(user?.role === 'teacher' || user?.role === 'admin') && (
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3>Add Maintenance Record</h3>
-              <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.2rem' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.2rem' }}>
                 Note: Cost entries will automatically log a matching expense entry for branch finance.
               </p>
 
@@ -236,6 +284,7 @@ const MachineDetail = () => {
                       value={maintDate}
                       onChange={(e) => setMaintDate(e.target.value)}
                       required
+                      disabled={submittingMaint}
                     />
                   </div>
 
@@ -249,6 +298,7 @@ const MachineDetail = () => {
                       min="0"
                       step="0.01"
                       required
+                      disabled={submittingMaint}
                     />
                   </div>
                 </div>
@@ -262,6 +312,7 @@ const MachineDetail = () => {
                     onChange={(e) => setMaintDesc(e.target.value)}
                     placeholder="e.g. Motor replacement & oil servicing"
                     required
+                    disabled={submittingMaint}
                   />
                 </div>
 
@@ -273,16 +324,18 @@ const MachineDetail = () => {
                     value={maintRemarks}
                     onChange={(e) => setMaintRemarks(e.target.value)}
                     placeholder="Optional technician notes"
+                    disabled={submittingMaint}
                   />
                 </div>
 
                 {/* Status Update Prompt */}
-                <div className="form-group" style={{ background: '#f8f8f8', padding: '0.5rem', border: '1px solid #000' }}>
+                <div className="form-group" style={{ background: 'var(--color-primary-light)', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '6px' }}>
                   <label style={{ fontSize: '0.8rem' }}>Update Machine Status (Optional):</label>
                   <select
                     className="form-select"
                     value={suggestedStatus}
                     onChange={(e) => setSuggestedStatus(e.target.value)}
+                    disabled={submittingMaint}
                   >
                     <option value="">-- Keep Current ({machine?.status?.replace(/_/g, ' ')}) --</option>
                     <option value="working">Set to Working</option>
@@ -292,9 +345,15 @@ const MachineDetail = () => {
                   </select>
                 </div>
 
-                <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}>
+                <LoadingButton
+                  type="submit"
+                  variant="black"
+                  loading={submittingMaint}
+                  loadingText="Submitting Maintenance... ⟳"
+                  style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+                >
                   Submit Maintenance Entry
-                </button>
+                </LoadingButton>
               </form>
             </div>
           )}

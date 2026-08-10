@@ -1,7 +1,9 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import ErrorState from '../components/common/ErrorState';
 import logoImg from '../../../logo_reverse.png';
 
 const CertificateView = () => {
@@ -13,28 +15,29 @@ const CertificateView = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchRenderData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await fetch(buildApiUrl(`/api/certificates/${id}/render`), {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setRenderData(data);
-        } else {
-          setError(data.message || 'Certificate not found');
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+  const fetchRenderData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(buildApiUrl(`/api/certificates/${id}/render`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRenderData(data);
+      } else {
+        setError(data.message || 'Certificate not found or invalid ID');
       }
-    };
-    fetchRenderData();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
   }, [id, token]);
+
+  useEffect(() => {
+    fetchRenderData();
+  }, [fetchRenderData]);
 
   const handlePrint = () => {
     window.print();
@@ -42,17 +45,29 @@ const CertificateView = () => {
 
   if (loading) {
     return (
-      <div className="page-container" style={{ textAlign: 'center', marginTop: '3rem' }}>
-        <div style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>🔄 Rendering Certificate...</div>
+      <div style={{ maxWidth: '850px', margin: '2rem auto', padding: '0 1rem' }}>
+        <div className="header-row">
+          <h2>Certificate Document</h2>
+        </div>
+        <SkeletonLoader type="detail" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="page-container" style={{ textAlign: 'center', marginTop: '3rem' }}>
-        <div className="error-box">{error}</div>
-        <button onClick={() => navigate(-1)} className="btn">Back</button>
+      <div style={{ maxWidth: '850px', margin: '2rem auto', padding: '0 1rem' }}>
+        <div className="header-row">
+          <h2>Certificate Document</h2>
+          <button onClick={() => navigate(-1)} className="btn">
+            &larr; Back
+          </button>
+        </div>
+        <ErrorState
+          error={error}
+          title="Certificate Render Failed"
+          onRetry={fetchRenderData}
+        />
       </div>
     );
   }
@@ -153,7 +168,7 @@ const CertificateView = () => {
             backgroundColor: 'var(--color-primary-dark)',
             padding: '1.5rem 2rem',
             display: 'flex',
-            justifyContent: 'space-between',
+            justify: 'space-between',
             alignItems: 'center',
             color: '#ffffff'
           }}>

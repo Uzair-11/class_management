@@ -1,6 +1,9 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState from '../components/common/ErrorState';
 
 const FeesReport = () => {
   const { token, user } = useAuth();
@@ -11,7 +14,7 @@ const FeesReport = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -22,9 +25,9 @@ const FeesReport = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
 
-  const fetchFeesReport = async () => {
+  const fetchFeesReport = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -42,19 +45,19 @@ const FeesReport = () => {
         setError(data.message || 'Failed to load fee collection report');
       }
     } catch (err) {
-      setError('Error connecting to fee report endpoint');
+      setError(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedBranchId, token]);
 
   useEffect(() => {
     fetchBranches();
-  }, [token]);
+  }, [fetchBranches]);
 
   useEffect(() => {
     fetchFeesReport();
-  }, [token, selectedBranchId]);
+  }, [fetchFeesReport]);
 
   return (
     <div>
@@ -67,6 +70,14 @@ const FeesReport = () => {
         </div>
       </div>
 
+      {error && !loading && (
+        <ErrorState
+          error={error}
+          title="Fee Collection Report Unavailable"
+          onRetry={fetchFeesReport}
+        />
+      )}
+
       {/* Branch Filter */}
       {user?.role !== 'teacher' && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -77,6 +88,7 @@ const FeesReport = () => {
               style={{ width: 'auto', minWidth: '240px' }}
               value={selectedBranchId}
               onChange={(e) => setSelectedBranchId(e.target.value)}
+              disabled={loading}
             >
               <option value="">-- All Accessible Branches --</option>
               {branches.map(b => (
@@ -87,39 +99,44 @@ const FeesReport = () => {
         </div>
       )}
 
-      {error && <div className="error-box">{error}</div>}
-
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-          <div style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>🔄 Calculating Fee Summaries...</div>
+        <div>
+          <SkeletonLoader type="dashboard" rows={3} style={{ marginBottom: '1.5rem' }} />
+          <SkeletonLoader type="table" rows={4} columns={5} />
         </div>
-      ) : (
-        reportData && (
-          <div>
-            {/* Top Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div className="card" style={{ borderTop: '4px solid var(--color-primary)' }}>
-                <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Total Payable Fee</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem' }}>₹{reportData.summary.total_final_fee}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>Net expected student fees</div>
-              </div>
-
-              <div className="card" style={{ borderTop: '4px solid var(--color-success)' }}>
-                <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Total Collected</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem', color: 'var(--color-success)' }}>₹{reportData.summary.total_amount_paid}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>Payments received to date</div>
-              </div>
-
-              <div className="card" style={{ borderTop: '4px solid var(--color-danger)' }}>
-                <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Total Outstanding Balance</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem', color: 'var(--color-danger)' }}>₹{reportData.summary.total_balance}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>Pending student dues</div>
-              </div>
+      ) : reportData && (
+        <div>
+          {/* Top Summary Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div className="card" style={{ borderTop: '4px solid var(--color-primary)' }}>
+              <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Total Payable Fee</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem' }}>₹{reportData.summary.total_final_fee}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>Net expected student fees</div>
             </div>
 
-            {/* Course Breakdown Table */}
-            <div className="card">
-              <h3>Course-wise Fee Ledger</h3>
+            <div className="card" style={{ borderTop: '4px solid var(--color-success)' }}>
+              <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Total Collected</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem', color: 'var(--color-success)' }}>₹{reportData.summary.total_amount_paid}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>Payments received to date</div>
+            </div>
+
+            <div className="card" style={{ borderTop: '4px solid var(--color-danger)' }}>
+              <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>Total Outstanding Balance</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.2rem', color: 'var(--color-danger)' }}>₹{reportData.summary.total_balance}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>Pending student dues</div>
+            </div>
+          </div>
+
+          {/* Course Breakdown Table */}
+          <div className="card">
+            <h3>Course-wise Fee Ledger</h3>
+            {reportData.courses.length === 0 ? (
+              <EmptyState
+                type="no-data"
+                title="No Fee Records Available"
+                message="No student enrollments or fee transactions exist for this branch filter."
+              />
+            ) : (
               <div className="table-responsive" style={{ marginTop: '1rem' }}>
                 <table className="plain-table">
                   <thead>
@@ -132,29 +149,23 @@ const FeesReport = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {reportData.courses.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" style={{ textAlign: 'center' }}>No fee data available</td>
+                    {reportData.courses.map(c => (
+                      <tr key={`frc-${c.course_id}`}>
+                        <td><strong>{c.course_name}</strong></td>
+                        <td><strong>{c.student_count}</strong> students</td>
+                        <td>₹{c.total_final_fee}</td>
+                        <td style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>₹{c.total_amount_paid}</td>
+                        <td style={{ color: parseFloat(c.total_balance) > 0 ? 'var(--color-danger)' : 'inherit', fontWeight: 'bold' }}>
+                          ₹{c.total_balance}
+                        </td>
                       </tr>
-                    ) : (
-                      reportData.courses.map(c => (
-                        <tr key={`frc-${c.course_id}`}>
-                          <td><strong>{c.course_name}</strong></td>
-                          <td><strong>{c.student_count}</strong> students</td>
-                          <td>₹{c.total_final_fee}</td>
-                          <td style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>₹{c.total_amount_paid}</td>
-                          <td style={{ color: parseFloat(c.total_balance) > 0 ? 'var(--color-danger)' : 'inherit', fontWeight: 'bold' }}>
-                            ₹{c.total_balance}
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            )}
           </div>
-        )
+        </div>
       )}
     </div>
   );

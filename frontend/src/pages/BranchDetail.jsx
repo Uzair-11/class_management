@@ -1,17 +1,27 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const BranchDetail = () => {
   const { id } = useParams();
   const { token } = useAuth();
+  const { showSuccess } = useToast();
   const navigate = useNavigate();
 
   const [branch, setBranch] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [amirs, setAmirs] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [assigningSup, setAssigningSup] = useState(false);
+  const [assigningAmir, setAssigningAmir] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -24,10 +34,11 @@ const BranchDetail = () => {
   // Mapping state
   const [selectedSupervisor, setSelectedSupervisor] = useState('');
   const [selectedAmir, setSelectedAmir] = useState('');
-  const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
-  const fetchBranchDetail = async () => {
+  const fetchBranchDetail = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const res = await fetch(buildApiUrl(`/api/branches/${id}`), {
         headers: { Authorization: `Bearer ${token}` }
@@ -42,14 +53,16 @@ const BranchDetail = () => {
         setClassEndTime(data.class_end_time || '');
         setStatus(data.status || 'active');
       } else {
-        setError(data.message);
+        setError(data.message || 'Failed to fetch branch details');
       }
     } catch (err) {
-      setError(err.message);
+      setError(err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id, token]);
 
-  const fetchDropdownUsers = async () => {
+  const fetchDropdownUsers = useCallback(async () => {
     try {
       const [tRes, sRes, aRes] = await Promise.all([
         fetch(buildApiUrl('/api/users?role=teacher'), { headers: { Authorization: `Bearer ${token}` } }),
@@ -63,17 +76,18 @@ const BranchDetail = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchBranchDetail();
     fetchDropdownUsers();
-  }, [id, token]);
+  }, [fetchBranchDetail, fetchDropdownUsers]);
 
   const handleUpdateBranch = async (e) => {
     e.preventDefault();
-    setMsg('');
     setError('');
+    setUpdating(true);
+
     try {
       const res = await fetch(buildApiUrl(`/api/branches/${id}`), {
         method: 'PUT',
@@ -92,16 +106,22 @@ const BranchDetail = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Update failed');
-      setMsg('Branch details updated successfully');
+
+      showSuccess('✓ Branch details updated successfully!');
       fetchBranchDetail();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Update failed');
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleAssignSupervisor = async (e) => {
     e.preventDefault();
     if (!selectedSupervisor) return;
+    setAssigningSup(true);
+    setError('');
+
     try {
       const res = await fetch(buildApiUrl(`/api/branches/${id}/assign-supervisor`), {
         method: 'POST',
@@ -112,29 +132,45 @@ const BranchDetail = () => {
         body: JSON.stringify({ user_id: selectedSupervisor })
       });
       if (res.ok) {
+        showSuccess('✓ Supervisor assigned successfully');
         setSelectedSupervisor('');
         fetchBranchDetail();
+      } else {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to assign supervisor');
       }
     } catch (err) {
-      console.error(err);
+      setError(err.message || 'Failed to assign supervisor');
+    } finally {
+      setAssigningSup(false);
     }
   };
 
   const handleUnassignSupervisor = async (userId) => {
+    setError('');
     try {
       const res = await fetch(buildApiUrl(`/api/branches/${id}/unassign-supervisor/${userId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) fetchBranchDetail();
+      if (res.ok) {
+        showSuccess('✓ Supervisor unassigned');
+        fetchBranchDetail();
+      } else {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to unassign supervisor');
+      }
     } catch (err) {
-      console.error(err);
+      setError(err.message || 'Failed to unassign supervisor');
     }
   };
 
   const handleAssignAmir = async (e) => {
     e.preventDefault();
     if (!selectedAmir) return;
+    setAssigningAmir(true);
+    setError('');
+
     try {
       const res = await fetch(buildApiUrl(`/api/branches/${id}/assign-amir`), {
         method: 'POST',
@@ -145,27 +181,64 @@ const BranchDetail = () => {
         body: JSON.stringify({ user_id: selectedAmir })
       });
       if (res.ok) {
+        showSuccess('✓ Amir assigned successfully');
         setSelectedAmir('');
         fetchBranchDetail();
+      } else {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to assign amir');
       }
     } catch (err) {
-      console.error(err);
+      setError(err.message || 'Failed to assign amir');
+    } finally {
+      setAssigningAmir(false);
     }
   };
 
   const handleUnassignAmir = async (userId) => {
+    setError('');
     try {
       const res = await fetch(buildApiUrl(`/api/branches/${id}/unassign-amir/${userId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) fetchBranchDetail();
+      if (res.ok) {
+        showSuccess('✓ Amir unassigned');
+        fetchBranchDetail();
+      } else {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to unassign amir');
+      }
     } catch (err) {
-      console.error(err);
+      setError(err.message || 'Failed to unassign amir');
     }
   };
 
-  if (!branch && !error) return <div>Loading branch details...</div>;
+  if (loading) {
+    return (
+      <div>
+        <div className="header-row">
+          <h2>Branch Details</h2>
+        </div>
+        <SkeletonLoader type="detail" />
+      </div>
+    );
+  }
+
+  if (error && !branch) {
+    return (
+      <div>
+        <div className="header-row">
+          <h2>Branch Details</h2>
+        </div>
+        <ErrorState
+          error={error}
+          title="Branch Details Unavailable"
+          onRetry={fetchBranchDetail}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -183,8 +256,7 @@ const BranchDetail = () => {
         </div>
       </div>
 
-      {msg && <div style={{ border: '1px solid #000', padding: '0.5rem', marginBottom: '1rem', background: '#f0f0f0' }}>{msg}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {error && <InlineError message={error} onDismiss={() => setError('')} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
         {/* Branch Edit Card */}
@@ -199,6 +271,7 @@ const BranchDetail = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={updating}
               />
             </div>
 
@@ -209,6 +282,7 @@ const BranchDetail = () => {
                 className="form-input"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
+                disabled={updating}
               />
             </div>
 
@@ -218,6 +292,7 @@ const BranchDetail = () => {
                 className="form-select"
                 value={teacherId}
                 onChange={(e) => setTeacherId(e.target.value)}
+                disabled={updating}
               >
                 <option value="">-- Select Teacher --</option>
                 {teachers.map(t => (
@@ -234,6 +309,7 @@ const BranchDetail = () => {
                   className="form-input"
                   value={classStartTime}
                   onChange={(e) => setClassStartTime(e.target.value)}
+                  disabled={updating}
                 />
               </div>
               <div className="form-group" style={{ flex: 1 }}>
@@ -243,6 +319,7 @@ const BranchDetail = () => {
                   className="form-input"
                   value={classEndTime}
                   onChange={(e) => setClassEndTime(e.target.value)}
+                  disabled={updating}
                 />
               </div>
             </div>
@@ -253,15 +330,22 @@ const BranchDetail = () => {
                 className="form-select"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
+                disabled={updating}
               >
                 <option value="active">Active</option>
                 <option value="closed">Closed</option>
               </select>
             </div>
 
-            <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem' }}>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={updating}
+              loadingText="Updating Branch Info... ⟳"
+              style={{ marginTop: '0.5rem' }}
+            >
               Update Branch Info
-            </button>
+            </LoadingButton>
           </form>
         </div>
 
@@ -273,15 +357,15 @@ const BranchDetail = () => {
             <ul style={{ listStyle: 'none', margin: '0.75rem 0' }}>
               {branch?.supervisors && branch.supervisors.length > 0 ? (
                 branch.supervisors.map((s, idx) => (
-                  <li key={`sup-${s.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', padding: '0.4rem 0' }}>
+                  <li key={`sup-${s.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', padding: '0.4rem 0' }}>
                     <span>{s.name} ({s.phone || 'No phone'})</span>
-                    <button onClick={() => handleUnassignSupervisor(s.id)} className="btn btn-sm">
+                    <button onClick={() => handleUnassignSupervisor(s.id)} className="btn btn-sm btn-danger">
                       Remove
                     </button>
                   </li>
                 ))
               ) : (
-                <li style={{ color: '#666', fontSize: '0.85rem' }}>No supervisor assigned</li>
+                <li style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>No supervisor assigned</li>
               )}
             </ul>
 
@@ -290,15 +374,22 @@ const BranchDetail = () => {
                 className="form-select"
                 value={selectedSupervisor}
                 onChange={(e) => setSelectedSupervisor(e.target.value)}
+                disabled={assigningSup}
               >
                 <option value="">-- Select Supervisor --</option>
                 {supervisors.map(s => (
                   <option key={`sup-opt-${s.id}`} value={s.id}>{s.name} ({s.phone})</option>
                 ))}
               </select>
-              <button type="submit" className="btn btn-black btn-sm">
+              <LoadingButton
+                type="submit"
+                variant="black"
+                className="btn-sm"
+                loading={assigningSup}
+                loadingText="... ⟳"
+              >
                 Assign
-              </button>
+              </LoadingButton>
             </form>
           </div>
 
@@ -308,15 +399,15 @@ const BranchDetail = () => {
             <ul style={{ listStyle: 'none', margin: '0.75rem 0' }}>
               {branch?.amirs && branch.amirs.length > 0 ? (
                 branch.amirs.map((a, idx) => (
-                  <li key={`amir-${a.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', padding: '0.4rem 0' }}>
+                  <li key={`amir-${a.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', padding: '0.4rem 0' }}>
                     <span>{a.name} ({a.phone || 'No phone'})</span>
-                    <button onClick={() => handleUnassignAmir(a.id)} className="btn btn-sm">
+                    <button onClick={() => handleUnassignAmir(a.id)} className="btn btn-sm btn-danger">
                       Remove
                     </button>
                   </li>
                 ))
               ) : (
-                <li style={{ color: '#666', fontSize: '0.85rem' }}>No amir assigned</li>
+                <li style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>No amir assigned</li>
               )}
             </ul>
 
@@ -325,15 +416,22 @@ const BranchDetail = () => {
                 className="form-select"
                 value={selectedAmir}
                 onChange={(e) => setSelectedAmir(e.target.value)}
+                disabled={assigningAmir}
               >
                 <option value="">-- Select Amir --</option>
                 {amirs.map(a => (
                   <option key={a.id} value={a.id}>{a.name} ({a.phone})</option>
                 ))}
               </select>
-              <button type="submit" className="btn btn-black btn-sm">
+              <LoadingButton
+                type="submit"
+                variant="black"
+                className="btn-sm"
+                loading={assigningAmir}
+                loadingText="... ⟳"
+              >
                 Assign
-              </button>
+              </LoadingButton>
             </form>
           </div>
         </div>

@@ -1,12 +1,22 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import EmptyState from '../components/common/EmptyState';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const Branches = () => {
   const { token } = useAuth();
+  const { showSuccess } = useToast();
+
   const [branches, setBranches] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState('');
 
@@ -17,7 +27,9 @@ const Branches = () => {
   const [classStartTime, setClassStartTime] = useState('15:00');
   const [classEndTime, setClassEndTime] = useState('17:00');
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -28,15 +40,16 @@ const Branches = () => {
         if (res.ok) setBranches(data);
         else setError(data.message || 'Failed to fetch branches');
       } else {
-        setError(`Server returned ${res.status}: ${res.statusText}. Please restart your backend server.`);
+        setError(`Server returned ${res.status}: ${res.statusText}. Please verify backend configuration.`);
       }
     } catch (err) {
-      console.error(err);
-      setError('Network error connecting to backend server');
+      setError(err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token]);
 
-  const fetchTeachers = async () => {
+  const fetchTeachers = useCallback(async () => {
     try {
       const res = await fetch(buildApiUrl('/api/users?role=teacher'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -46,16 +59,18 @@ const Branches = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchBranches();
     fetchTeachers();
-  }, [token]);
+  }, [fetchBranches, fetchTeachers]);
 
   const handleCreateBranch = async (e) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
+
     try {
       const res = await fetch(buildApiUrl('/api/branches'), {
         method: 'POST',
@@ -74,13 +89,16 @@ const Branches = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to create branch');
 
+      showSuccess(`✓ Branch "${name}" created successfully!`);
       setShowAddModal(false);
       setName('');
       setAddress('');
       setTeacherId('');
       fetchBranches();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to create branch');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -89,17 +107,26 @@ const Branches = () => {
       <div className="header-row">
         <div>
           <h2>Branches Management</h2>
-          <p style={{ fontSize: '0.85rem', color: '#666' }}>Manage training centers, teachers, and assigned leadership</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Manage training centers, teachers, and assigned leadership</p>
         </div>
         <button onClick={() => setShowAddModal(!showAddModal)} className="btn btn-black">
           {showAddModal ? 'Cancel' : '+ Add Branch'}
         </button>
       </div>
 
+      {error && !loading && (
+        <ErrorState
+          error={error}
+          title="Branches Couldn't Be Loaded"
+          onRetry={fetchBranches}
+        />
+      )}
+
       {showAddModal && (
-        <div className="card">
+        <div className="card" style={{ borderTop: '4px solid var(--color-primary)' }}>
           <h3>Create New Branch</h3>
-          {error && <div className="error-box" style={{ marginTop: '0.5rem' }}>{error}</div>}
+          {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
           <form onSubmit={handleCreateBranch} style={{ marginTop: '1rem' }}>
             <div className="form-group">
               <label>Branch Name *</label>
@@ -110,6 +137,7 @@ const Branches = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. City Center Branch"
                 required
+                disabled={submitting}
               />
             </div>
 
@@ -121,6 +149,7 @@ const Branches = () => {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Full address"
+                disabled={submitting}
               />
             </div>
 
@@ -130,6 +159,7 @@ const Branches = () => {
                 className="form-select"
                 value={teacherId}
                 onChange={(e) => setTeacherId(e.target.value)}
+                disabled={submitting}
               >
                 <option value="">-- Select Teacher --</option>
                 {teachers.map(t => (
@@ -146,6 +176,7 @@ const Branches = () => {
                   className="form-input"
                   value={classStartTime}
                   onChange={(e) => setClassStartTime(e.target.value)}
+                  disabled={submitting}
                 />
               </div>
               <div className="form-group" style={{ flex: 1 }}>
@@ -155,38 +186,51 @@ const Branches = () => {
                   className="form-input"
                   value={classEndTime}
                   onChange={(e) => setClassEndTime(e.target.value)}
+                  disabled={submitting}
                 />
               </div>
             </div>
 
-            <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem' }}>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={submitting}
+              loadingText="Saving Branch... ⟳"
+              style={{ marginTop: '0.5rem' }}
+            >
               Save Branch
-            </button>
+            </LoadingButton>
           </form>
         </div>
       )}
 
-      <div className="table-responsive">
-        <table className="plain-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Branch Name</th>
-              <th>Teacher</th>
-              <th>Supervisor(s)</th>
-              <th>Amir(s)</th>
-              <th>Timing</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {branches.length === 0 ? (
+      {loading ? (
+        <SkeletonLoader type="table" rows={5} columns={8} />
+      ) : branches.length === 0 ? (
+        <EmptyState
+          type="no-data"
+          title="No Branches Configured"
+          message="No operational branches or training centers exist in the system."
+          actionText="+ Create First Branch"
+          onAction={() => setShowAddModal(true)}
+        />
+      ) : (
+        <div className="table-responsive">
+          <table className="plain-table">
+            <thead>
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center' }}>No branches found</td>
+                <th>ID</th>
+                <th>Branch Name</th>
+                <th>Teacher</th>
+                <th>Supervisor(s)</th>
+                <th>Amir(s)</th>
+                <th>Timing</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
-            ) : (
-              branches.map(b => (
+            </thead>
+            <tbody>
+              {branches.map(b => (
                 <tr key={b.id}>
                   <td>{b.id}</td>
                   <td><strong>{b.name}</strong></td>
@@ -213,11 +257,11 @@ const Branches = () => {
                     </Link>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,9 +1,14 @@
 import { buildApiUrl } from '../utils/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import LoadingButton from '../components/common/LoadingButton';
+import ErrorState, { InlineError } from '../components/common/ErrorState';
 
 const Profile = () => {
   const { token, user } = useAuth();
+  const { showSuccess } = useToast();
 
   const [profileData, setProfileData] = useState(null);
   const [name, setName] = useState('');
@@ -20,12 +25,16 @@ const Profile = () => {
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
-  const [profileMsg, setProfileMsg] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
   const [profileErr, setProfileErr] = useState('');
-  const [passMsg, setPassMsg] = useState('');
   const [passErr, setPassErr] = useState('');
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    setProfileErr('');
     try {
       const res = await fetch(buildApiUrl('/api/auth/me'), {
         headers: { Authorization: `Bearer ${token}` }
@@ -37,21 +46,23 @@ const Profile = () => {
         setEmail(data.user.email || '');
         setPhone(data.user.phone || '');
       } else {
-        setProfileErr(data.message);
+        setProfileErr(data.message || 'Failed to fetch user profile');
       }
     } catch (err) {
-      setProfileErr(err.message);
+      setProfileErr(err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchProfile();
-  }, [token]);
+  }, [fetchProfile]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    setProfileMsg('');
     setProfileErr('');
+    setUpdatingProfile(true);
 
     try {
       const res = await fetch(buildApiUrl('/api/auth/profile'), {
@@ -66,22 +77,25 @@ const Profile = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to update profile');
 
-      setProfileMsg('Profile updated successfully!');
+      showSuccess('✓ Personal profile details updated successfully!');
       fetchProfile();
     } catch (err) {
-      setProfileErr(err.message);
+      setProfileErr(err.message || 'Failed to update profile');
+    } finally {
+      setUpdatingProfile(false);
     }
   };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    setPassMsg('');
     setPassErr('');
 
     if (newPassword !== confirmPassword) {
       setPassErr('New password and confirm password do not match');
       return;
     }
+
+    setUpdatingPassword(true);
 
     try {
       const res = await fetch(buildApiUrl('/api/auth/change-password'), {
@@ -99,14 +113,42 @@ const Profile = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to change password');
 
-      setPassMsg('Password updated successfully!');
+      showSuccess('✓ Password updated successfully!');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      setPassErr(err.message);
+      setPassErr(err.message || 'Failed to change password');
+    } finally {
+      setUpdatingPassword(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div>
+        <div className="header-row">
+          <h2>User Account Profile</h2>
+        </div>
+        <SkeletonLoader type="detail" />
+      </div>
+    );
+  }
+
+  if (profileErr && !profileData) {
+    return (
+      <div>
+        <div className="header-row">
+          <h2>User Account Profile</h2>
+        </div>
+        <ErrorState
+          error={profileErr}
+          title="Profile Unavailable"
+          onRetry={fetchProfile}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -127,8 +169,7 @@ const Profile = () => {
             Update your primary contact information
           </p>
 
-          {profileMsg && <div style={{ border: '1px solid var(--color-primary)', padding: '0.5rem', marginBottom: '1rem', background: '#E2E6F8' }}>{profileMsg}</div>}
-          {profileErr && <div className="error-box">{profileErr}</div>}
+          {profileErr && <InlineError message={profileErr} onDismiss={() => setProfileErr('')} />}
 
           <form onSubmit={handleUpdateProfile}>
             <div className="form-group">
@@ -139,6 +180,7 @@ const Profile = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={updatingProfile}
               />
             </div>
 
@@ -150,6 +192,7 @@ const Profile = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
+                disabled={updatingProfile}
               />
             </div>
 
@@ -161,19 +204,26 @@ const Profile = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="e.g. user@example.com"
+                disabled={updatingProfile}
               />
             </div>
 
             <div className="form-group">
               <label>System Role & Permissions</label>
-              <div style={{ padding: '0.65rem', background: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: '8px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.85rem' }}>
+              <div style={{ padding: '0.65rem', background: 'var(--color-primary-light)', border: '1px solid var(--color-border)', borderRadius: '8px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.85rem' }}>
                 🛡️ {profileData?.role || user?.role} ACCESS
               </div>
             </div>
 
-            <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={updatingProfile}
+              loadingText="Saving Profile... ⟳"
+              style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+            >
               Save Profile Changes
-            </button>
+            </LoadingButton>
           </form>
         </div>
 
@@ -184,8 +234,7 @@ const Profile = () => {
             Update your password to keep your portal account secure
           </p>
 
-          {passMsg && <div style={{ border: '1px solid var(--color-success)', padding: '0.5rem', marginBottom: '1rem', background: 'rgba(46,125,50,0.1)', color: 'var(--color-success)' }}>{passMsg}</div>}
-          {passErr && <div className="error-box">{passErr}</div>}
+          {passErr && <InlineError message={passErr} onDismiss={() => setPassErr('')} />}
 
           <form onSubmit={handleChangePassword}>
             {/* Current Password Field */}
@@ -200,6 +249,7 @@ const Profile = () => {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter current password"
                   required
+                  disabled={updatingPassword}
                 />
                 <button
                   type="button"
@@ -217,6 +267,7 @@ const Profile = () => {
                     padding: '0.2rem'
                   }}
                   title={showCurrentPass ? 'Hide password' : 'Show password'}
+                  disabled={updatingPassword}
                 >
                   {showCurrentPass ? '👁️' : '👁️‍🗨️'}
                 </button>
@@ -236,6 +287,7 @@ const Profile = () => {
                   placeholder="Min 6 characters"
                   minLength="6"
                   required
+                  disabled={updatingPassword}
                 />
                 <button
                   type="button"
@@ -253,6 +305,7 @@ const Profile = () => {
                     padding: '0.2rem'
                   }}
                   title={showNewPass ? 'Hide password' : 'Show password'}
+                  disabled={updatingPassword}
                 >
                   {showNewPass ? '👁️' : '👁️‍🗨️'}
                 </button>
@@ -271,6 +324,7 @@ const Profile = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
                   required
+                  disabled={updatingPassword}
                 />
                 <button
                   type="button"
@@ -288,15 +342,22 @@ const Profile = () => {
                     padding: '0.2rem'
                   }}
                   title={showConfirmPass ? 'Hide password' : 'Show password'}
+                  disabled={updatingPassword}
                 >
                   {showConfirmPass ? '👁️' : '👁️‍🗨️'}
                 </button>
               </div>
             </div>
 
-            <button type="submit" className="btn btn-black" style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}>
+            <LoadingButton
+              type="submit"
+              variant="black"
+              loading={updatingPassword}
+              loadingText="Updating Password... ⟳"
+              style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+            >
               Update Password
-            </button>
+            </LoadingButton>
           </form>
         </div>
       </div>
