@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { verifyBranchAccess } = require('../middleware/auth');
 
 // Helper to retrieve allowed branch IDs based on user role
 const getAccessibleBranchIds = async (user) => {
@@ -144,6 +145,14 @@ const createStudent = async (req, res) => {
     return res.status(400).json({ message: 'Name, branch, and course are required' });
   }
 
+  // Branch access/ownership check
+  if (req.user) {
+    const hasAccess = await verifyBranchAccess(req.user, branch_id);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Forbidden: Cannot register student in a branch you do not own/access' });
+    }
+  }
+
   const client = await pool.connect();
 
   try {
@@ -212,6 +221,10 @@ const updateStudent = async (req, res) => {
   const { id } = req.params;
   const { name, phone, address, branch_id, course_id, admission_date } = req.body;
 
+  if (req.user && req.user.role === 'amir') {
+    return res.status(403).json({ message: 'Forbidden: Amirs cannot edit student records' });
+  }
+
   try {
     const result = await pool.query(
       `UPDATE students
@@ -241,6 +254,10 @@ const updateStudentStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   const validStatuses = ['active', 'completed', 'dropped'];
+
+  if (req.user && req.user.role === 'amir') {
+    return res.status(403).json({ message: 'Forbidden: Amirs cannot change student status' });
+  }
 
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ message: `Status must be one of: ${validStatuses.join(', ')}` });

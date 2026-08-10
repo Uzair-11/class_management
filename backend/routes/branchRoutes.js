@@ -18,11 +18,11 @@ const { sanitizeRequestBody, createBranchSchema } = require('../middleware/valid
 router.get('/', authenticateToken, getBranches);
 router.get('/:id', authenticateToken, getBranchById);
 
-router.post('/', authenticateToken, authorizeRoles('admin'), sanitizeRequestBody, createBranchSchema, createBranch);
+router.post('/', authenticateToken, authorizeRoles('admin', 'amir'), sanitizeRequestBody, createBranchSchema, createBranch);
 router.put('/:id', authenticateToken, authorizeRoles('admin'), sanitizeRequestBody, updateBranch);
-router.post('/:id/assign-supervisor', authenticateToken, authorizeRoles('admin'), assignSupervisor);
-router.delete('/:id/unassign-supervisor/:userId', authenticateToken, authorizeRoles('admin'), unassignSupervisor);
-router.delete('/:id/supervisors/:userId', authenticateToken, authorizeRoles('admin'), unassignSupervisor);
+router.post('/:id/assign-supervisor', authenticateToken, authorizeRoles('admin', 'amir'), assignSupervisor);
+router.delete('/:id/unassign-supervisor/:userId', authenticateToken, authorizeRoles('admin', 'amir'), unassignSupervisor);
+router.delete('/:id/supervisors/:userId', authenticateToken, authorizeRoles('admin', 'amir'), unassignSupervisor);
 router.post('/:id/assign-amir', authenticateToken, authorizeRoles('admin'), assignAmir);
 router.delete('/:id/unassign-amir/:userId', authenticateToken, authorizeRoles('admin'), unassignAmir);
 router.delete('/:id/amirs/:userId', authenticateToken, authorizeRoles('admin'), unassignAmir);

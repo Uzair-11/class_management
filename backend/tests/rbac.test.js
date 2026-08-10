@@ -32,16 +32,19 @@ describe('SECTION 12: Cross-Cutting Role-Based Access Control (RBAC-01 to RBAC-0
     }
   });
 
-  test('RBAC-02: Amir has read-only access, scoped to assigned branches only', async () => {
-    // Write attempts should return 403
-    const writeAttempts = [
-      { method: 'post', url: '/api/branches', body: { name: 'Fail Branch Name' } },
-      { method: 'post', url: '/api/users', body: { name: 'Fail User', phone: '9999999999', password: 'Password123', role: 'teacher' } },
+  test('RBAC-02: Amir scope (branch/user creation for owned branches, read-only on finance/holidays/edits)', async () => {
+    // Forbidden write/edit attempts should return 403
+    const forbiddenAttempts = [
+      { method: 'post', url: '/api/users', body: { name: 'Fail Admin', phone: '9999999999', password: 'Password123', role: 'admin' } },
+      { method: 'post', url: '/api/users', body: { name: 'Fail Amir', phone: '9999999998', password: 'Password123', role: 'amir' } },
+      { method: 'put', url: '/api/users/1', body: { name: 'Edit Attempt' } },
+      { method: 'delete', url: '/api/users/1', body: {} },
+      { method: 'put', url: '/api/branches/1', body: { name: 'Edit Branch' } },
       { method: 'post', url: '/api/holidays', body: { branch_id: 1, date: '2026-11-01', reason: 'Fail Holiday' } },
       { method: 'post', url: '/api/branches/1/expenses', body: { description: 'Fail Expense', amount: 100 } }
     ];
 
-    for (const ep of writeAttempts) {
+    for (const ep of forbiddenAttempts) {
       const res = await request(app)[ep.method](ep.url).set('Authorization', `Bearer ${amirToken}`).send(ep.body);
       expect(res.statusCode).toBe(403);
     }

@@ -167,22 +167,22 @@ const Navbar = () => {
                     📚 Courses
                   </Link>
                   {role === 'admin' && (
-                    <>
-                      <Link 
-                        to="/certificate-templates" 
-                        className="nav-dropdown-item"
-                        onClick={closeMenu}
-                      >
-                        🎓 Cert Templates
-                      </Link>
-                      <Link 
-                        to="/users" 
-                        className="nav-dropdown-item"
-                        onClick={closeMenu}
-                      >
-                        👥 Users
-                      </Link>
-                    </>
+                    <Link 
+                      to="/certificate-templates" 
+                      className="nav-dropdown-item"
+                      onClick={closeMenu}
+                    >
+                      🎓 Cert Templates
+                    </Link>
+                  )}
+                  {(role === 'admin' || role === 'amir') && (
+                    <Link 
+                      to="/users" 
+                      className="nav-dropdown-item"
+                      onClick={closeMenu}
+                    >
+                      👥 Users
+                    </Link>
                   )}
                 </div>
               )}

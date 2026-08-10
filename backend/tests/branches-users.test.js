@@ -155,4 +155,97 @@ describe('SECTION 2: Branches & Users (BRU-01 to BRU-12)', () => {
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
+
+  test('BRU-13: Amir creates branch and is auto-mapped', async () => {
+    const res = await request(app)
+      .post('/api/branches')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Amir New Branch', address: 'Amir St 123' });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.branch.name).toBe('Amir New Branch');
+  });
+
+  test('BRU-14: Amir creates teacher for owned branch (201) vs unowned branch (403)', async () => {
+    // Owned branch (Branch 1)
+    const successRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Amir Teacher 1', phone: '9911223344', password: 'Password123', role: 'teacher', branch_id: 1 });
+
+    expect(successRes.statusCode).toBe(201);
+
+    // Unowned branch (Branch 999)
+    const failRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Amir Teacher 2', phone: '9911223355', password: 'Password123', role: 'teacher', branch_id: 999 });
+
+    expect(failRes.statusCode).toBe(403);
+  });
+
+  test('BRU-15: Amir creates supervisor for owned branch (201) vs unowned branch (403)', async () => {
+    // Owned branch (Branch 1)
+    const successRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Amir Sup 1', phone: '9911223366', password: 'Password123', role: 'supervisor', branch_ids: [1] });
+
+    expect(successRes.statusCode).toBe(201);
+
+    // Unowned branch (Branch 999)
+    const failRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Amir Sup 2', phone: '9911223377', password: 'Password123', role: 'supervisor', branch_ids: [999] });
+
+    expect(failRes.statusCode).toBe(403);
+  });
+
+  test('BRU-16: Amir forbidden from creating admin or amir accounts', async () => {
+    const adminRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Fake Admin', phone: '9911223388', password: 'Password123', role: 'admin' });
+
+    expect(adminRes.statusCode).toBe(403);
+
+    const amirRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Fake Amir', phone: '9911223399', password: 'Password123', role: 'amir' });
+
+    expect(amirRes.statusCode).toBe(403);
+  });
+
+  test('BRU-17: Amir GET /api/users response NEVER contains role=admin or role=amir', async () => {
+    const res = await request(app)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${amirToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+
+    const adminOrAmir = res.body.filter(u => u.role === 'admin' || u.role === 'amir');
+    expect(adminOrAmir.length).toBe(0);
+  });
+
+  test('BRU-18: Amir forbidden from edit/deactivate actions (create-only)', async () => {
+    const editUserRes = await request(app)
+      .put('/api/users/4')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Changed Name' });
+    expect(editUserRes.statusCode).toBe(403);
+
+    const deleteUserRes = await request(app)
+      .delete('/api/users/4')
+      .set('Authorization', `Bearer ${amirToken}`);
+    expect(deleteUserRes.statusCode).toBe(403);
+
+    const editBranchRes = await request(app)
+      .put('/api/branches/1')
+      .set('Authorization', `Bearer ${amirToken}`)
+      .send({ name: 'Changed Branch' });
+    expect(editBranchRes.statusCode).toBe(403);
+  });
 });

@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { verifyBranchAccess } = require('../middleware/auth');
 
 // In-memory dev fallbacks if PostgreSQL is unavailable
 let mockBranches = [
@@ -114,7 +115,17 @@ const createBranch = async (req, res) => {
        RETURNING *`,
       [name, address || null, teacher_id || null, class_start_time || '15:00', class_end_time || '17:00']
     );
-    res.status(201).json({ message: 'Branch created successfully', branch: result.rows[0] });
+    const newBranch = result.rows[0];
+
+    // If created by an Amir, automatically map them in amir_branch_map
+    if (req.user && req.user.role === 'amir') {
+      await pool.query(
+        `INSERT INTO amir_branch_map (user_id, branch_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [req.user.id, newBranch.id]
+      );
+    }
+
+    res.status(201).json({ message: 'Branch created successfully', branch: newBranch });
   } catch (err) {
     const newBranch = {
       id: Date.now(),
@@ -126,6 +137,9 @@ const createBranch = async (req, res) => {
       status: 'active'
     };
     mockBranches.push(newBranch);
+    if (req.user && req.user.role === 'amir') {
+      mockAmirMap.push({ user_id: req.user.id, branch_id: newBranch.id });
+    }
     res.status(201).json({ message: 'Branch created successfully', branch: newBranch });
   }
 };
@@ -182,6 +196,13 @@ const assignSupervisor = async (req, res) => {
   const { user_id } = req.body;
   if (!user_id) return res.status(400).json({ message: 'User ID is required' });
 
+  if (req.user && req.user.role === 'amir') {
+    const isOwner = await verifyBranchAccess(req.user, id);
+    if (!isOwner) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this branch' });
+    }
+  }
+
   try {
     await pool.query(
       `INSERT INTO supervisor_branch_map (user_id, branch_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
@@ -197,6 +218,14 @@ const assignSupervisor = async (req, res) => {
 // DELETE /api/branches/:id/unassign-supervisor/:userId
 const unassignSupervisor = async (req, res) => {
   const { id, userId } = req.params;
+
+  if (req.user && req.user.role === 'amir') {
+    const isOwner = await verifyBranchAccess(req.user, id);
+    if (!isOwner) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this branch' });
+    }
+  }
+
   try {
     await pool.query(
       `DELETE FROM supervisor_branch_map WHERE branch_id = $1 AND user_id = $2`,
