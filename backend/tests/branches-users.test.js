@@ -110,6 +110,16 @@ describe('SECTION 2: Branches & Users (BRU-01 to BRU-12)', () => {
     expect(res.body.user).not.toHaveProperty('password_hash');
   });
 
+  test('BRU-08b: Admin creates teacher for any branch unrestricted', async () => {
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Unrestricted Teacher', phone: '9900011133', email: 'unrestrictedteacher@test.com', password: 'Password123', role: 'teacher', branch_id: 2 });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.user.name).toBe('Unrestricted Teacher');
+  });
+
   test('BRU-09: Deactivate user (soft delete)', async () => {
     // Create temp user for deactivation
     const createRes = await request(app)
