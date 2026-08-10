@@ -1,16 +1,16 @@
 # Jamaat-e-Islami Hind (JIH) Sewing Classes Management System
 
-> A full-stack web application designed for Jamaat-e-Islami Hind (JIH) to manage branch operations, staff, student admissions, attendance, monthly fee cycles, examinations, custom certificate issuance, sewing machines, maintenance, expenses, salaries, and role-based analytics.
+> A full-stack web application built to replace manual, paper-based record keeping for a multi-branch sewing training program with a centralized, role-based digital system.
 
-![Node.js](https://img.shields.io/badge/Node.js-v18%2B-green) ![React](https://img.shields.io/badge/React-v18-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-v14%2B-blue) ![Express](https://img.shields.io/badge/Express-v4.19-lightgrey) ![License](https://img.shields.io/badge/License-Proprietary-red)
+![Version](https://img.shields.io/badge/Version-1.0-blue) ![Release Date](https://img.shields.io/badge/Release%20Date-August%2010%2C%202026-green) ![Node.js](https://img.shields.io/badge/Node.js-v18%2B-green) ![React](https://img.shields.io/badge/React-v18-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-v14%2B-blue) ![Express](https://img.shields.io/badge/Express-v4.19-lightgrey) ![License](https://img.shields.io/badge/License-Proprietary-red)
 
 ---
 
 ## 📌 Problem Statement
 
-Jamaat-e-Islami Hind (JIH) operates multiple vocational sewing centers across urban and rural branches to empower women through skill development. Managing attendance, fee collection, relief discounts, machine maintenance, certificate issuance, and branch finance across disparate spreadsheets created operational bottlenecks, data inconsistencies, and delayed reporting.
+Jamaat-e-Islami Hind (JIH) operates multiple vocational sewing centers across urban and rural branches to empower women through skill development. Managing attendance, fee collection, relief discounts, machine maintenance, certificate issuance, and branch finance manually across disparate registers created operational bottlenecks, data inconsistencies, and delayed reporting.
 
-This system provides a unified, secure platform with role-based access control (RBAC), row-locked daily attendance, dynamic certificate visual field positioning, monthly fee cycle tracking, and organization-wide financial oversight.
+Built to replace manual, paper-based record keeping for a multi-branch sewing training program with a centralized, role-based digital system, this platform provides a unified, secure web application with role-based access control (RBAC), row-locked daily attendance, dynamic certificate visual field positioning, monthly fee cycle tracking, and organization-wide financial oversight.
 
 *For full background and architectural objectives, read [docs/01_Problem_Statement.md](file:///c:/Users/Uzair/Documents/JIH/docs/01_Problem_Statement.md).*
 
@@ -118,7 +118,7 @@ This system provides a unified, secure platform with role-based access control (
 
 ### Role-Based Access Hierarchy
 - **Admin**: Complete access across all organization branches, users, templates, and finances.
-- **Amir**: Multi-branch read-only performance oversight for assigned branches.
+- **Amir**: Multi-branch oversight and creation of owned branches, supervisors, teachers, and students within assigned scope.
 - **Supervisor**: Multi-branch operational management, leave request approval, and holiday declaration.
 - **Teacher**: Single-branch operational execution (daily attendance, student profile view, exam score entry).
 
@@ -200,7 +200,7 @@ npm run test:e2e
 ```
 
 ### Verified Test Suite Status:
-- **Jest Backend API Suite**: **12/12 Suites Passed** (97/97 tests passing)
+- **Jest Backend API Suite**: **12/12 Suites Passed** (104/104 tests passing)
 - **Playwright Frontend E2E Suite**: **17/17 Specs Passed** (100% passing)
 
 *Note: All test data uses non-routable dummy numbers (`9000000001` - `9000000005`).*
@@ -210,12 +210,24 @@ npm run test:e2e
 ## 🔒 Security Hardening
 
 - **Access Token & Cookie Refresh Pattern**: Access tokens expire in 15 minutes; refresh tokens are stored in `httpOnly`, `SameSite=Strict` cookies and hashed on the server.
-- **Resource-Level IDOR Protection**: `verifyBranchAccess` middleware restricts teachers and supervisors to authorized branch resource IDs.
+- **Resource-Level IDOR Protection**: `verifyBranchAccess` middleware restricts teachers, supervisors, and amirs to authorized branch resource IDs.
 - **Schema Validation & XSS Filtering**: `express-validator` checks types/lengths on every POST/PUT route; `xss` sanitizes free-text strings.
 - **Rate Limiting & Account Lockout**: Auth routes limited to 5 attempts before a 15-minute lock out; general API routes rate-limited.
 - **Parameterized SQL Queries**: 100% of database interactions use `$1, $2` parameters via `pg`.
 
 *For production security configuration, read [docs/DEPLOYMENT_GUIDE.md](file:///c:/Users/Uzair/Documents/JIH/docs/DEPLOYMENT_GUIDE.md).*
+
+---
+
+## 📜 Version History
+
+### v1.0 (August 10, 2026)
+- **Full role-based system**: Admin, Amir-e-Muqami, Supervisor, Teacher
+- **Complete student lifecycle**: admission, monthly fee cycles with relief handling, attendance with holiday/leave workflows, examinations and certificate issuance
+- **Branch operations**: machine/maintenance tracking, expense and salary management, JIH financial support accounting
+- **Amir-e-Muqami capabilities**: Amir-e-Muqami can independently create and manage their own branches, staff, and students within their scope
+- **Automated test coverage**: 100+ backend tests, 17 frontend E2E tests
+- **Security hardening**: JWT access/refresh token authentication, input validation, rate limiting, RBAC enforcement, secure file handling
 
 ---
 
