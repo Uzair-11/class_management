@@ -101,7 +101,10 @@ const Login = () => {
         </form>
 
         <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)', fontSize: '0.78rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-          Jamaat-e-Islami Hind &bull; Official NGO Portal
+          <div>Jamaat-e-Islami Hind &bull; Official NGO Portal</div>
+          <div style={{ fontSize: '0.70rem', color: 'rgba(0, 0, 0, 0.45)', marginTop: '0.25rem', fontWeight: 400 }}>
+            System built by Axiom Technologies
+          </div>
         </div>
       </div>
     </div>
