@@ -6,6 +6,7 @@ const {
   getStudents,
   getStudentById,
   createStudent,
+  bulkUploadStudents,
   updateStudent,
   updateStudentStatus,
   deleteStudent
@@ -20,6 +21,8 @@ router.get('/courses', authenticateToken, getCourses);
 router.get('/students', authenticateToken, getStudents);
 router.get('/students/:id', authenticateToken, getStudentById);
 router.post('/students', authenticateToken, sanitizeRequestBody, createStudentSchema, createStudent);
+router.post('/students/bulk-upload', authenticateToken, bulkUploadStudents);
+router.post('/bulk-upload', authenticateToken, bulkUploadStudents);
 router.put('/students/:id', authenticateToken, sanitizeRequestBody, updateStudentSchema, updateStudent);
 router.put('/students/:id/status', authenticateToken, updateStudentStatus);
 router.delete('/students/:id', authenticateToken, deleteStudent);

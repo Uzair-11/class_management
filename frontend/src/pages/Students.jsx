@@ -22,7 +22,14 @@ const Students = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [error, setError] = useState('');
+
+  // Bulk Upload State
+  const [_bulkFile, setBulkFile] = useState(null);
+  const [parsedBulkRows, setParsedBulkRows] = useState([]);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkResults, setBulkResults] = useState(null);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -156,6 +163,130 @@ const Students = () => {
     }
   };
 
+  // CSV Parser
+  const parseCSV = (csvText) => {
+    const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
+    if (lines.length === 0) return [];
+
+    const parseLine = (line) => {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else {
+          cur += char;
+        }
+      }
+      result.push(cur.trim());
+      return result;
+    };
+
+    const rawHeaders = parseLine(lines[0]);
+    const headers = rawHeaders.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseLine(lines[i]);
+      if (values.length === 0 || (values.length === 1 && !values[0])) continue;
+
+      const rowObj = {};
+      headers.forEach((h, idx) => {
+        let val = values[idx] || '';
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.slice(1, -1);
+        }
+        
+        if (h.includes('name') && !h.includes('branch') && !h.includes('course')) rowObj.name = val;
+        else if (h.includes('phone')) rowObj.phone = val;
+        else if (h.includes('address')) rowObj.address = val;
+        else if (h.includes('branch')) rowObj.branch_name = val;
+        else if (h.includes('course')) rowObj.course_name = val;
+        else if (h.includes('admission') || h.includes('date')) rowObj.admission_date = val;
+        else if (h.includes('type')) rowObj.relief_type = val.toLowerCase();
+        else if (h.includes('relief') && h.includes('amount')) rowObj.relief_amount = val;
+      });
+
+      if (rowObj.name || rowObj.branch_name || rowObj.course_name) {
+        rows.push(rowObj);
+      }
+    }
+    return rows;
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    setBulkFile(selectedFile);
+    setBulkResults(null);
+    if (!selectedFile) {
+      setParsedBulkRows([]);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const parsed = parseCSV(text);
+      setParsedBulkRows(parsed);
+    };
+    reader.readAsText(selectedFile);
+  };
+
+  const downloadSampleCSV = () => {
+    const sampleContent =
+      "Name,Phone,Address,Branch Name,Course Name,Admission Date,Relief Type,Relief Amount\n" +
+      "Ayesha Siddiqui,9876543210,\"House 12, Main Street\",Central Branch,Basic Course,2026-08-01,none,0\n" +
+      "Fatima Bano,9876543211,\"Sector 4, Market Road\",Central Branch,Designer Course,2026-08-05,partial,100\n";
+    const blob = new Blob([sampleContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'sample_students_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleBulkSubmit = async () => {
+    if (parsedBulkRows.length === 0) {
+      setError('No parsed student records to submit');
+      return;
+    }
+
+    setBulkSubmitting(true);
+    setBulkResults(null);
+    setError('');
+
+    try {
+      const res = await fetch(buildApiUrl('/api/students/bulk-upload'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ students: parsedBulkRows })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Bulk upload failed');
+
+      setBulkResults(data);
+      if (data.successCount > 0) {
+        showSuccess(`✓ Bulk upload complete: ${data.successCount} students registered successfully!`);
+        fetchStudents(selectedBranchFilter);
+      }
+    } catch (err) {
+      setError(err.message || 'Bulk upload failed');
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
   const confirmDeleteStudent = (student) => {
     setStudentToDelete(student);
     setDeleteModalOpen(true);
@@ -209,9 +340,14 @@ const Students = () => {
             Enrollment, course assignments, and fee status tracking
           </p>
         </div>
-        <button onClick={() => setShowAddModal(!showAddModal)} className="btn btn-black btn-mobile-full">
-          {showAddModal ? 'Cancel' : '+ Add Student'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button onClick={() => { setShowBulkModal(!showBulkModal); setShowAddModal(false); }} className="btn btn-black">
+            {showBulkModal ? 'Cancel Bulk' : '📥 Bulk Upload CSV'}
+          </button>
+          <button onClick={() => { setShowAddModal(!showAddModal); setShowBulkModal(false); }} className="btn btn-black">
+            {showAddModal ? 'Cancel' : '+ Add Student'}
+          </button>
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -257,6 +393,105 @@ const Students = () => {
           title="Directory Couldn't Load"
           onRetry={() => fetchStudents(selectedBranchFilter)}
         />
+      )}
+
+      {/* Bulk Upload CSV Modal/Card */}
+      {showBulkModal && (
+        <div className="card" style={{ marginBottom: '1.5rem', borderTop: '4px solid var(--color-primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div>
+              <h3>📥 Bulk Student Admission Upload</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                Upload a CSV spreadsheet to enroll multiple students at once
+              </p>
+            </div>
+            <button onClick={downloadSampleCSV} className="btn btn-sm">
+              📄 Download Sample CSV Template
+            </button>
+          </div>
+
+          {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Select CSV File *</label>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="form-input"
+                onChange={handleFileChange}
+                disabled={bulkSubmitting}
+              />
+            </div>
+          </div>
+
+          {parsedBulkRows.length > 0 && (
+            <div style={{ marginTop: '1rem' }}>
+              <h4>Preview Parsed Students ({parsedBulkRows.length} rows ready)</h4>
+              <div className="table-responsive" style={{ maxHeight: '240px', overflowY: 'auto', marginTop: '0.5rem' }}>
+                <table className="plain-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Name</th>
+                      <th>Phone</th>
+                      <th>Branch</th>
+                      <th>Course</th>
+                      <th>Relief</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsedBulkRows.map((r, idx) => (
+                      <tr key={`pbr-${idx}`}>
+                        <td>{idx + 1}</td>
+                        <td><strong>{r.name}</strong></td>
+                        <td>{r.phone || '-'}</td>
+                        <td>{r.branch_name || 'Central Branch'}</td>
+                        <td>{r.course_name || 'Basic Course'}</td>
+                        <td>{r.relief_type ? `${r.relief_type} (${r.relief_amount || 0})` : 'none'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                <LoadingButton
+                  type="button"
+                  variant="black"
+                  loading={bulkSubmitting}
+                  loadingText={`Registering ${parsedBulkRows.length} Students... ⟳`}
+                  onClick={handleBulkSubmit}
+                >
+                  🚀 Upload & Register {parsedBulkRows.length} Students
+                </LoadingButton>
+                <button type="button" onClick={() => { setParsedBulkRows([]); setBulkFile(null); setBulkResults(null); }} className="btn" disabled={bulkSubmitting}>
+                  Clear File
+                </button>
+              </div>
+            </div>
+          )}
+
+          {bulkResults && (
+            <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--color-primary-light)', borderRadius: '8px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-primary-dark)' }}>
+                {bulkResults.message}
+              </div>
+              {bulkResults.failedRows && bulkResults.failedRows.length > 0 && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <strong style={{ color: 'var(--color-danger)' }}>Row Validation Errors:</strong>
+                  <ul style={{ fontSize: '0.85rem', color: 'var(--color-danger)', marginTop: '0.25rem', paddingLeft: '1.25rem' }}>
+                    {bulkResults.failedRows.map((fr, idx) => (
+                      <li key={`frerr-${idx}`}>
+                        Row #{fr.row} ({fr.name}): {fr.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Filter and Search Controls Row */}

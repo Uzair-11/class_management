@@ -216,6 +216,146 @@ const createStudent = async (req, res) => {
   }
 };
 
+// POST /api/students/bulk-upload — Bulk register students from CSV / Array
+const bulkUploadStudents = async (req, res) => {
+  const { students: studentList } = req.body;
+  const user = req.user;
+
+  if (!Array.isArray(studentList) || studentList.length === 0) {
+    return res.status(400).json({ message: 'No student records provided for bulk upload' });
+  }
+
+  const accessibleBranchIds = await getAccessibleBranchIds(user);
+  
+  // Pre-fetch courses and branches maps for name resolution
+  const [coursesRes, branchesRes] = await Promise.all([
+    pool.query('SELECT id, name, fee FROM courses'),
+    pool.query('SELECT id, name FROM branches')
+  ]);
+
+  const coursesByName = {};
+  const coursesById = {};
+  coursesRes.rows.forEach(c => {
+    coursesByName[c.name.trim().toLowerCase()] = c;
+    coursesById[c.id] = c;
+  });
+
+  const branchesByName = {};
+  const branchesById = {};
+  branchesRes.rows.forEach(b => {
+    branchesByName[b.name.trim().toLowerCase()] = b;
+    branchesById[b.id] = b;
+  });
+
+  let successCount = 0;
+  const failedRows = [];
+  const createdStudents = [];
+
+  for (let i = 0; i < studentList.length; i++) {
+    const item = studentList[i];
+    const rowNum = i + 1;
+
+    try {
+      const name = item.name ? item.name.trim() : '';
+      if (!name) {
+        failedRows.push({ row: rowNum, name: item.name || 'Unnamed', reason: 'Student name is required' });
+        continue;
+      }
+
+      // Resolve branch
+      let branch = null;
+      if (item.branch_id) {
+        branch = branchesById[item.branch_id];
+      } else if (item.branch_name) {
+        branch = branchesByName[item.branch_name.trim().toLowerCase()];
+      }
+
+      if (!branch) {
+        failedRows.push({ row: rowNum, name, reason: `Branch '${item.branch_name || item.branch_id}' not found` });
+        continue;
+      }
+
+      // Check role permissions for branch
+      if (accessibleBranchIds !== null && !accessibleBranchIds.includes(branch.id)) {
+        failedRows.push({ row: rowNum, name, reason: `Access denied to branch '${branch.name}'` });
+        continue;
+      }
+
+      // Resolve course
+      let course = null;
+      if (item.course_id) {
+        course = coursesById[item.course_id];
+      } else if (item.course_name) {
+        course = coursesByName[item.course_name.trim().toLowerCase()];
+      }
+
+      if (!course) {
+        failedRows.push({ row: rowNum, name, reason: `Course '${item.course_name || item.course_id}' not found` });
+        continue;
+      }
+
+      const originalFee = parseFloat(course.fee);
+      let reliefType = (item.relief_type || 'none').toLowerCase();
+      let reliefAmount = parseFloat(item.relief_amount || 0);
+
+      if (reliefType === 'full') {
+        reliefAmount = originalFee;
+      } else if (reliefType === 'none') {
+        reliefAmount = 0;
+      }
+
+      if (reliefAmount < 0 || reliefAmount > originalFee) {
+        failedRows.push({ row: rowNum, name, reason: `Relief amount (₹${reliefAmount}) cannot exceed course fee (₹${originalFee})` });
+        continue;
+      }
+
+      // Insert Student & Fee Cycle in client transaction
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const studentRes = await client.query(
+          `INSERT INTO students (name, phone, address, branch_id, course_id, admission_date, relief_type, relief_amount, status)
+           VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE), $7, $8, 'active')
+           RETURNING *`,
+          [name, item.phone || null, item.address || null, branch.id, course.id, item.admission_date || null, reliefType, reliefAmount]
+        );
+        const newStudent = studentRes.rows[0];
+
+        const admissionDate = newStudent.admission_date || new Date();
+        const dueDate = new Date(admissionDate);
+        dueDate.setMonth(dueDate.getMonth() + 1);
+
+        await client.query(
+          `INSERT INTO fee_cycles (student_id, branch_id, cycle_number, due_date, original_amount, relief_amount, amount_paid, status)
+           VALUES ($1, $2, 1, $3, $4, $5, 0, 'pending')
+           ON CONFLICT (student_id, cycle_number) DO NOTHING`,
+          [newStudent.id, branch.id, dueDate.toISOString().split('T')[0], originalFee, reliefAmount]
+        );
+
+        await client.query('COMMIT');
+        successCount++;
+        createdStudents.push(newStudent);
+      } catch (rowErr) {
+        await client.query('ROLLBACK');
+        failedRows.push({ row: rowNum, name, reason: rowErr.message });
+      } finally {
+        client.release();
+      }
+    } catch (err) {
+      failedRows.push({ row: rowNum, name: item.name || `Row ${rowNum}`, reason: err.message });
+    }
+  }
+
+  res.status(200).json({
+    message: `Bulk upload finished: ${successCount} registered successfully, ${failedRows.length} failed`,
+    successCount,
+    failedCount: failedRows.length,
+    failedRows,
+    createdStudents
+  });
+};
+
 // PUT /api/students/:id — edit student details
 const updateStudent = async (req, res) => {
   const { id } = req.params;
@@ -324,6 +464,7 @@ module.exports = {
   getStudents,
   getStudentById,
   createStudent,
+  bulkUploadStudents,
   updateStudent,
   updateStudentStatus,
   deleteStudent
