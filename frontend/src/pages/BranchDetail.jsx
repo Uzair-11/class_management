@@ -6,10 +6,11 @@ import { useToast } from '../context/ToastContext';
 import SkeletonLoader from '../components/common/SkeletonLoader';
 import LoadingButton from '../components/common/LoadingButton';
 import ErrorState, { InlineError } from '../components/common/ErrorState';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const BranchDetail = () => {
   const { id } = useParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { showSuccess } = useToast();
   const navigate = useNavigate();
 
@@ -22,6 +23,10 @@ const BranchDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [assigningSup, setAssigningSup] = useState(false);
   const [assigningAmir, setAssigningAmir] = useState(false);
+
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingBranch, setDeletingBranch] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -113,6 +118,27 @@ const BranchDetail = () => {
       setError(err.message || 'Update failed');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDeleteBranch = async () => {
+    setDeletingBranch(true);
+    setError('');
+
+    try {
+      const res = await fetch(buildApiUrl(`/api/branches/${id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete branch');
+
+      showSuccess(`✓ Branch "${branch?.name}" deleted successfully`);
+      navigate('/branches');
+    } catch (err) {
+      setError(err.message || 'Failed to delete branch');
+    } finally {
+      setDeletingBranch(false);
     }
   };
 
@@ -246,10 +272,15 @@ const BranchDetail = () => {
         <div>
           <h2>Branch Details: {branch?.name}</h2>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <Link to={`/branches/${id}/finance`} className="btn btn-black">
             📊 Branch Finance Dashboard
           </Link>
+          {user?.role === 'admin' && (
+            <button onClick={() => setDeleteModalOpen(true)} className="btn btn-danger">
+              🗑️ Delete Branch
+            </button>
+          )}
           <button onClick={() => navigate('/branches')} className="btn">
             &larr; Back to Branches
           </button>
@@ -257,6 +288,19 @@ const BranchDetail = () => {
       </div>
 
       {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
+      {/* Delete Branch Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Branch Location"
+        message={`Are you sure you want to permanently delete branch "${branch?.name}"?`}
+        warningText="This will delete all enrolled students, attendance records, fee cycles, machine inventory, and financial ledgers associated with this branch."
+        confirmText="Delete Branch & All Data"
+        confirmVariant="danger"
+        loading={deletingBranch}
+        onConfirm={handleDeleteBranch}
+        onCancel={() => setDeleteModalOpen(false)}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
         {/* Branch Edit Card */}

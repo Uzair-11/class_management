@@ -190,6 +190,66 @@ const updateBranch = async (req, res) => {
   }
 };
 
+// DELETE /api/branches/:id — delete a branch record and all dependent data
+const deleteBranch = async (req, res) => {
+  const { id } = req.params;
+
+  if (req.user && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Forbidden: Only Admins can delete branch records' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(`DELETE FROM amir_branch_map WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM supervisor_branch_map WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM attendance_locks WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM attendance WHERE branch_id = $1`, [id]);
+    await client.query(
+      `DELETE FROM fee_payments WHERE fee_cycle_id IN (SELECT id FROM fee_cycles WHERE branch_id = $1)`,
+      [id]
+    );
+    await client.query(`DELETE FROM fee_cycles WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM leave_requests WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM examinations WHERE student_id IN (SELECT id FROM students WHERE branch_id = $1)`, [id]);
+    await client.query(`DELETE FROM certificates WHERE student_id IN (SELECT id FROM students WHERE branch_id = $1)`, [id]);
+    await client.query(`DELETE FROM students WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM holidays WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM machine_maintenance WHERE machine_id IN (SELECT id FROM machines WHERE branch_id = $1)`, [id]);
+    await client.query(`DELETE FROM machines WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM expenses WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM salaries WHERE branch_id = $1`, [id]);
+    await client.query(`DELETE FROM branch_transactions WHERE branch_id = $1`, [id]);
+
+    const result = await client.query(`DELETE FROM branches WHERE id = $1 RETURNING *`, [id]);
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Branch not found' });
+    }
+
+    await client.query('COMMIT');
+
+    const idx = mockBranches.findIndex(b => b.id === parseInt(id));
+    if (idx !== -1) mockBranches.splice(idx, 1);
+
+    res.json({ message: 'Branch and all associated records deleted successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('deleteBranch error:', err);
+
+    const idx = mockBranches.findIndex(b => b.id === parseInt(id));
+    if (idx !== -1) {
+      mockBranches.splice(idx, 1);
+      return res.json({ message: 'Branch deleted successfully' });
+    }
+    res.status(500).json({ message: 'Error deleting branch', error: err.message });
+  } finally {
+    client.release();
+  }
+};
+
 // POST /api/branches/:id/assign-supervisor
 const assignSupervisor = async (req, res) => {
   const { id } = req.params;
@@ -276,6 +336,7 @@ module.exports = {
   getBranchById,
   createBranch,
   updateBranch,
+  deleteBranch,
   assignSupervisor,
   unassignSupervisor,
   assignAmir,

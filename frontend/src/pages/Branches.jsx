@@ -7,9 +7,10 @@ import SkeletonLoader from '../components/common/SkeletonLoader';
 import LoadingButton from '../components/common/LoadingButton';
 import EmptyState from '../components/common/EmptyState';
 import ErrorState, { InlineError } from '../components/common/ErrorState';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const Branches = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { showSuccess } = useToast();
 
   const [branches, setBranches] = useState([]);
@@ -19,6 +20,11 @@ const Branches = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState('');
+
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [branchToDelete, setBranchToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -102,6 +108,35 @@ const Branches = () => {
     }
   };
 
+  const confirmDeleteBranch = (branch) => {
+    setBranchToDelete(branch);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteBranch = async () => {
+    if (!branchToDelete) return;
+    setDeleting(true);
+    setError('');
+
+    try {
+      const res = await fetch(buildApiUrl(`/api/branches/${branchToDelete.id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete branch');
+
+      showSuccess(`✓ Branch "${branchToDelete.name}" deleted successfully`);
+      setDeleteModalOpen(false);
+      setBranchToDelete(null);
+      fetchBranches();
+    } catch (err) {
+      setError(err.message || 'Failed to delete branch');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div>
       <div className="header-row">
@@ -113,6 +148,22 @@ const Branches = () => {
           {showAddModal ? 'Cancel' : '+ Add Branch'}
         </button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Branch Location"
+        message={`Are you sure you want to permanently delete branch "${branchToDelete?.name}"?`}
+        warningText="This will delete all enrolled students, attendance sheets, fee cycles, machine inventory, and financial ledgers associated with this branch."
+        confirmText="Delete Branch & All Data"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={handleDeleteBranch}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setBranchToDelete(null);
+        }}
+      />
 
       {error && !loading && (
         <ErrorState
@@ -252,9 +303,16 @@ const Branches = () => {
                   <td>{b.class_start_time} - {b.class_end_time}</td>
                   <td style={{ textTransform: 'uppercase' }}>{b.status}</td>
                   <td>
-                    <Link to={`/branches/${b.id}`} className="btn btn-sm">
-                      Manage / Edit
-                    </Link>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <Link to={`/branches/${b.id}`} className="btn btn-sm">
+                        Manage / Edit
+                      </Link>
+                      {user?.role === 'admin' && (
+                        <button onClick={() => confirmDeleteBranch(b)} className="btn btn-sm btn-danger">
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

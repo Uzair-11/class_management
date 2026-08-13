@@ -7,6 +7,7 @@ import SkeletonLoader from '../components/common/SkeletonLoader';
 import LoadingButton from '../components/common/LoadingButton';
 import EmptyState from '../components/common/EmptyState';
 import ErrorState, { InlineError } from '../components/common/ErrorState';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const Students = () => {
   const { token, user } = useAuth();
@@ -22,6 +23,11 @@ const Students = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState('');
+
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -150,6 +156,35 @@ const Students = () => {
     }
   };
 
+  const confirmDeleteStudent = (student) => {
+    setStudentToDelete(student);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return;
+    setDeleting(true);
+    setError('');
+
+    try {
+      const res = await fetch(buildApiUrl(`/api/students/${studentToDelete.id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete student');
+
+      showSuccess(`✓ Student "${studentToDelete.name}" deleted successfully`);
+      setDeleteModalOpen(false);
+      setStudentToDelete(null);
+      fetchStudents(selectedBranchFilter);
+    } catch (err) {
+      setError(err.message || 'Failed to delete student');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Filter students by Search Query (Name/Phone)
   const filteredStudents = students.filter(s => {
     const nameMatch = s.name ? s.name.toLowerCase().includes(searchQuery.toLowerCase()) : false;
@@ -178,6 +213,22 @@ const Students = () => {
           {showAddModal ? 'Cancel' : '+ Add Student'}
         </button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Student Record"
+        message={`Are you sure you want to permanently delete student "${studentToDelete?.name}"?`}
+        warningText="This action will delete all associated fee cycles, payments, attendance history, and certificates."
+        confirmText="Delete Permanently"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={handleDeleteStudent}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setStudentToDelete(null);
+        }}
+      />
 
       {/* Summary Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -453,9 +504,16 @@ const Students = () => {
                       )}
                     </td>
                     <td>
-                      <Link to={`/students/${s.id}`} className="btn btn-sm">
-                        View / Edit
-                      </Link>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <Link to={`/students/${s.id}`} className="btn btn-sm">
+                          View / Edit
+                        </Link>
+                        {user?.role !== 'amir' && (
+                          <button onClick={() => confirmDeleteStudent(s)} className="btn btn-sm btn-danger">
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

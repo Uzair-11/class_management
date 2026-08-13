@@ -6,6 +6,7 @@ const {
   getBranchById,
   createBranch,
   updateBranch,
+  deleteBranch,
   assignSupervisor,
   unassignSupervisor,
   assignAmir,
@@ -20,6 +21,8 @@ router.get('/:id', authenticateToken, getBranchById);
 
 router.post('/', authenticateToken, authorizeRoles('admin', 'amir'), sanitizeRequestBody, createBranchSchema, createBranch);
 router.put('/:id', authenticateToken, authorizeRoles('admin'), sanitizeRequestBody, updateBranch);
+router.delete('/:id', authenticateToken, authorizeRoles('admin'), deleteBranch);
+
 router.post('/:id/assign-supervisor', authenticateToken, authorizeRoles('admin', 'amir'), assignSupervisor);
 router.delete('/:id/unassign-supervisor/:userId', authenticateToken, authorizeRoles('admin', 'amir'), unassignSupervisor);
 router.delete('/:id/supervisors/:userId', authenticateToken, authorizeRoles('admin', 'amir'), unassignSupervisor);

@@ -138,7 +138,7 @@ const getStudentById = async (req, res) => {
 const createStudent = async (req, res) => {
   const {
     name, phone, address, branch_id, course_id, admission_date,
-    relief_type = 'none', relief_amount = 0, relief_percentage
+    relief_type = 'none', relief_amount = 0
   } = req.body;
 
   if (!name || !branch_id || !course_id) {
@@ -279,11 +279,52 @@ const updateStudentStatus = async (req, res) => {
   }
 };
 
+// DELETE /api/students/:id — delete student record and all dependencies
+const deleteStudent = async (req, res) => {
+  const { id } = req.params;
+
+  if (req.user && req.user.role === 'amir') {
+    return res.status(403).json({ message: 'Forbidden: Amirs cannot delete student records' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(
+      `DELETE FROM fee_payments WHERE fee_cycle_id IN (SELECT id FROM fee_cycles WHERE student_id = $1)`,
+      [id]
+    );
+    await client.query(`DELETE FROM fee_cycles WHERE student_id = $1`, [id]);
+    await client.query(`DELETE FROM attendance WHERE student_id = $1`, [id]);
+    await client.query(`DELETE FROM leave_requests WHERE student_id = $1`, [id]);
+    await client.query(`DELETE FROM examinations WHERE student_id = $1`, [id]);
+    await client.query(`DELETE FROM certificates WHERE student_id = $1`, [id]);
+
+    const result = await client.query(`DELETE FROM students WHERE id = $1 RETURNING *`, [id]);
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Student record deleted successfully', student: result.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('deleteStudent error:', err);
+    res.status(500).json({ message: 'Error deleting student', error: err.message });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getCourses,
   getStudents,
   getStudentById,
   createStudent,
   updateStudent,
-  updateStudentStatus
+  updateStudentStatus,
+  deleteStudent
 };

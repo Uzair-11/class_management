@@ -7,7 +7,8 @@ const {
   getStudentById,
   createStudent,
   updateStudent,
-  updateStudentStatus
+  updateStudentStatus,
+  deleteStudent
 } = require('../controllers/studentController');
 
 const { sanitizeRequestBody, createStudentSchema, updateStudentSchema } = require('../middleware/validators');
@@ -21,5 +22,6 @@ router.get('/students/:id', authenticateToken, getStudentById);
 router.post('/students', authenticateToken, sanitizeRequestBody, createStudentSchema, createStudent);
 router.put('/students/:id', authenticateToken, sanitizeRequestBody, updateStudentSchema, updateStudent);
 router.put('/students/:id/status', authenticateToken, updateStudentStatus);
+router.delete('/students/:id', authenticateToken, deleteStudent);
 
 module.exports = router;

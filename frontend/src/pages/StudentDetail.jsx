@@ -66,6 +66,10 @@ const StudentDetail = () => {
   const [voidPaymentId, setVoidPaymentId] = useState(null);
   const [voidingPayment, setVoidingPayment] = useState(false);
 
+  // Delete student modal confirmation
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingStudent, setDeletingStudent] = useState(false);
+
   const fetchStudentDetail = useCallback(async () => {
     setLoadingStudent(true);
     setError('');
@@ -223,6 +227,26 @@ const StudentDetail = () => {
       setError(err.message || 'Failed to update student profile');
     } finally {
       setUpdatingProfile(false);
+    }
+  };
+
+  const handleDeleteStudent = async () => {
+    setDeletingStudent(true);
+    setError('');
+    try {
+      const res = await fetch(buildApiUrl(`/api/students/${id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete student');
+
+      showSuccess(`✓ Student "${student?.name}" deleted successfully`);
+      navigate('/students');
+    } catch (err) {
+      setError(err.message || 'Failed to delete student');
+    } finally {
+      setDeletingStudent(false);
     }
   };
 
@@ -392,10 +416,15 @@ const StudentDetail = () => {
     <div>
       <div className="header-row">
         <h2>Student Profile: {student?.name}</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button onClick={() => setShowLeaveModal(!showLeaveModal)} className="btn btn-black">
             📝 Request Leave
           </button>
+          {user?.role !== 'amir' && (
+            <button onClick={() => setDeleteModalOpen(true)} className="btn btn-danger">
+              🗑️ Delete Student
+            </button>
+          )}
           <button onClick={() => navigate('/students')} className="btn">
             &larr; Back to Students
           </button>
@@ -403,6 +432,19 @@ const StudentDetail = () => {
       </div>
 
       {error && <InlineError message={error} onDismiss={() => setError('')} />}
+
+      {/* Delete Student Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Student Profile"
+        message={`Are you sure you want to permanently delete student "${student?.name}"?`}
+        warningText="This action will permanently delete all associated fee cycles, payment receipts, attendance logs, and certificates."
+        confirmText="Delete Student Profile"
+        confirmVariant="danger"
+        loading={deletingStudent}
+        onConfirm={handleDeleteStudent}
+        onCancel={() => setDeleteModalOpen(false)}
+      />
 
       {/* Void Payment Modal */}
       <ConfirmModal
