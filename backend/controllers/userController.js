@@ -193,14 +193,59 @@ const updateUser = async (req, res) => {
   }
 };
 
-// DELETE /api/users/:id — deactivate user (Admin only)
+// DELETE /api/users/:id — deactivate or permanently delete user (Admin only)
 const deactivateUser = async (req, res) => {
   const { id } = req.params;
+  const { permanent } = req.query;
 
   if (req.user && req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Forbidden: Only admin can deactivate users' });
+    return res.status(403).json({ message: 'Forbidden: Only admin can manage users' });
   }
 
+  if (permanent === 'true') {
+    if (req.user.id === parseInt(id)) {
+      return res.status(400).json({ message: 'Cannot delete your logged-in admin account' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(`UPDATE branches SET teacher_id = NULL WHERE teacher_id = $1`, [id]);
+      await client.query(`DELETE FROM supervisor_branch_map WHERE user_id = $1`, [id]);
+      await client.query(`DELETE FROM amir_branch_map WHERE user_id = $1`, [id]);
+      await client.query(`UPDATE attendance SET marked_by = NULL WHERE marked_by = $1`, [id]);
+      await client.query(`UPDATE attendance_locks SET locked_by = NULL WHERE locked_by = $1`, [id]);
+      await client.query(`UPDATE fee_payments SET received_by = NULL WHERE received_by = $1`, [id]);
+      await client.query(`UPDATE leave_requests SET reviewed_by = NULL WHERE reviewed_by = $1`, [id]);
+      await client.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [id]);
+      await client.query(`DELETE FROM salaries WHERE employee_id = $1`, [id]);
+
+      const result = await client.query(`DELETE FROM users WHERE id = $1 RETURNING id, name`, [id]);
+
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      await client.query('COMMIT');
+
+      const idx = mockUsersList.findIndex(u => u.id === parseInt(id));
+      if (idx !== -1) mockUsersList.splice(idx, 1);
+
+      return res.json({ message: 'User deleted permanently', user: result.rows[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('permanent deleteUser error:', err);
+      const idx = mockUsersList.findIndex(u => u.id === parseInt(id));
+      if (idx !== -1) mockUsersList.splice(idx, 1);
+      return res.json({ message: 'User deleted permanently' });
+    } finally {
+      client.release();
+    }
+  }
+
+  // Soft Deactivate
   try {
     const result = await pool.query(
       `UPDATE users SET status = 'inactive' WHERE id = $1 RETURNING id, name, status`,
@@ -210,8 +255,7 @@ const deactivateUser = async (req, res) => {
     res.json({ message: 'User deactivated successfully', user: result.rows[0] });
   } catch (err) {
     const idx = mockUsersList.findIndex(u => u.id === parseInt(id));
-    if (idx === -1) return res.status(404).json({ message: 'User not found' });
-    mockUsersList[idx].status = 'inactive';
+    if (idx !== -1) mockUsersList[idx].status = 'inactive';
     res.json({ message: 'User deactivated successfully', user: mockUsersList[idx] });
   }
 };

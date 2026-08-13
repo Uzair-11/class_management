@@ -39,6 +39,11 @@ const Users = () => {
   const [deactivateUserId, setDeactivateUserId] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
 
+  // Permanent Delete Modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -190,6 +195,35 @@ const Users = () => {
     }
   };
 
+  const confirmDeleteUser = (u) => {
+    setUserToDelete(u);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteUserPermanent = async () => {
+    if (!userToDelete) return;
+    setError('');
+    setDeleting(true);
+
+    try {
+      const res = await fetch(buildApiUrl(`/api/users/${userToDelete.id}?permanent=true`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete user');
+
+      showSuccess(`✓ User "${userToDelete.name}" deleted permanently`);
+      setDeleteModalOpen(false);
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (err) {
+      setError(err.message || 'Failed to delete user');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const isAdmin = user?.role === 'admin';
 
   return (
@@ -219,12 +253,28 @@ const Users = () => {
         message="Are you sure you want to deactivate this user account? The user will no longer be able to sign in."
         warningText="Account access will be suspended."
         confirmText="Deactivate Account"
-        confirmVariant="danger"
+        confirmVariant="warning"
         loading={deactivating}
         onConfirm={handleDeactivate}
         onCancel={() => {
           setDeactivateModalOpen(false);
           setDeactivateUserId(null);
+        }}
+      />
+
+      {/* Permanent Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete User Account Permanently"
+        message={`Are you sure you want to permanently delete user account "${userToDelete?.name}" (${userToDelete?.role?.toUpperCase()})?`}
+        warningText="This action will remove the account and unlink them from all branches and supervisor/teacher assignments."
+        confirmText="Delete Permanently"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={handleDeleteUserPermanent}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setUserToDelete(null);
         }}
       />
 
@@ -412,14 +462,21 @@ const Users = () => {
                     <td style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{u.status}</td>
                     {isAdmin && (
                       <td>
-                        <button onClick={() => handleEditClick(u)} className="btn btn-sm" style={{ marginRight: '0.4rem' }}>
-                          Edit
-                        </button>
-                        {u.status === 'active' && (
-                          <button onClick={() => confirmDeactivate(u.id)} className="btn btn-sm btn-danger">
-                            Deactivate
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <button onClick={() => handleEditClick(u)} className="btn btn-sm">
+                            Edit
                           </button>
-                        )}
+                          {u.status === 'active' && (
+                            <button onClick={() => confirmDeactivate(u.id)} className="btn btn-sm">
+                              Deactivate
+                            </button>
+                          )}
+                          {u.id !== user?.id && (
+                            <button onClick={() => confirmDeleteUser(u)} className="btn btn-sm btn-danger">
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
